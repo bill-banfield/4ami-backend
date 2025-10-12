@@ -21,7 +21,7 @@ export class UserVerificationResponseDto {
   phone?: string;
 
   @ApiProperty({ example: 'ABC Corporation', required: false })
-  company?: string;
+  companyName?: string;
 
   @ApiProperty({ example: 'How did you hear about us', required: false })
   source?: string;

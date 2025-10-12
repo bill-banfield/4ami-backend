@@ -110,10 +110,10 @@ export class AuthService {
     invitedUser.password = password; // Let User entity handle hashing
     invitedUser.firstName = firstName;
     invitedUser.lastName = lastName;
-    invitedUser.title = title;
-    invitedUser.company = company;
-    invitedUser.phone = phone;
-    invitedUser.source = source;
+    if (title) invitedUser.title = title;
+    if (company) invitedUser.companyName = company;
+    if (phone) invitedUser.phone = phone;
+    if (source) invitedUser.source = source;
     invitedUser.role = role;
     invitedUser.isActive = true;
     invitedUser.isEmailVerified = true;
@@ -188,7 +188,7 @@ export class AuthService {
     user.lastName = userData.lastName;
     user.title = userData.title;
     user.phone = userData.phone;
-    user.company = userData.company;
+    user.companyName = userData.companyName;
     user.source = userData.source;
     user.role = userData.role;
     user.isActive = userData.isActive;

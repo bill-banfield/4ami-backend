@@ -13,6 +13,7 @@ import { mailConfig } from './config/mail.config';
 // Modules
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { CompaniesModule } from './modules/companies/companies.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { ReportsModule } from './modules/reports/reports.module';
@@ -141,6 +142,7 @@ import { CommonModule } from './common/common.module';
     HealthModule,
     AuthModule,
     UsersModule,
+    CompaniesModule,
     ProjectsModule,
     AssetsModule,
     ReportsModule,

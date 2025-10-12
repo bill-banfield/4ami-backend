@@ -5,6 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
   BeforeInsert,
   BeforeUpdate,
 } from 'typeorm';
@@ -13,6 +15,7 @@ import * as bcrypt from 'bcryptjs';
 import { UserRole } from '../common/enums/user-role.enum';
 import { Project } from './project.entity';
 import { Asset } from './asset.entity';
+import { Company } from './company.entity';
 
 @Entity('users')
 export class User {
@@ -39,7 +42,7 @@ export class User {
   phone: string;
 
   @Column({ nullable: true })
-  company: string;
+  companyName: string;
 
   @Column({ nullable: true })
   source: string;
@@ -72,6 +75,12 @@ export class User {
   @Column({ nullable: true })
   lastLoginAt: Date;
 
+  @Column({ nullable: true })
+  companyId: string;
+
+  @Column({ nullable: true })
+  createdById: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -79,10 +88,30 @@ export class User {
   updatedAt: Date;
 
   // Relations
+  @ManyToOne(() => Company, (company) => company.users)
+  @JoinColumn({ name: 'companyId' })
+  @Exclude()
+  company: Company;
+
+  @ManyToOne(() => User, (user) => user.createdUsers)
+  @JoinColumn({ name: 'createdById' })
+  @Exclude()
+  createdBy: User;
+
+  @OneToMany(() => User, (user) => user.createdBy)
+  @Exclude()
+  createdUsers: User[];
+
+  @OneToMany(() => Company, (company) => company.createdBy)
+  @Exclude()
+  companiesCreated: Company[];
+
   @OneToMany(() => Project, (project) => project.createdBy)
+  @Exclude()
   projects: Project[];
 
   @OneToMany(() => Asset, (asset) => asset.createdBy)
+  @Exclude()
   assets: Asset[];
 
   @BeforeInsert()

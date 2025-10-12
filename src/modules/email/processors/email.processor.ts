@@ -2,6 +2,8 @@ import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
+import { Company } from '../../../entities/company.entity';
+import { User } from '../../../entities/user.entity';
 
 @Processor('email')
 @Injectable()
@@ -159,6 +161,110 @@ export class EmailProcessor {
       return { success: true, email };
     } catch (error) {
       console.error(`Failed to send email verification to ${email}:`, error);
+      throw error;
+    }
+  }
+
+  @Process('send-company-registration-notification')
+  async handleSendCompanyRegistrationNotification(job: Job<{
+    company: Company;
+    customerAdmin: User;
+  }>) {
+    const { company, customerAdmin } = job.data;
+
+    try {
+      // Get system admin email from environment or use default
+      const systemAdminEmail = process.env.SYSTEM_ADMIN_EMAIL || 'admin@4ami.com';
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>New Company Registration</h2>
+          <p>A new company has been registered on the 4AMI Platform.</p>
+
+          <h3>Company Details:</h3>
+          <ul>
+            <li><strong>Company Name:</strong> ${company.companyName}</li>
+            <li><strong>Company Email:</strong> ${company.companyEmail}</li>
+            <li><strong>EIN/TAX ID:</strong> ${company.einTaxId}</li>
+            <li><strong>Phone:</strong> ${company.phone}</li>
+            <li><strong>Mobile:</strong> ${company.mobile}</li>
+            <li><strong>Address:</strong> ${company.address1}${company.address2 ? ', ' + company.address2 : ''}</li>
+            <li><strong>City:</strong> ${company.city}</li>
+            <li><strong>State:</strong> ${company.state}</li>
+            <li><strong>ZIP:</strong> ${company.zip}</li>
+            <li><strong>Country:</strong> ${company.country}</li>
+            ${company.regionBranch ? `<li><strong>Region/Branch:</strong> ${company.regionBranch}</li>` : ''}
+          </ul>
+
+          <h3>Customer Admin Details:</h3>
+          <ul>
+            <li><strong>Name:</strong> ${customerAdmin.firstName} ${customerAdmin.lastName}</li>
+            <li><strong>Email:</strong> ${customerAdmin.email}</li>
+            <li><strong>Title:</strong> ${customerAdmin.title || 'N/A'}</li>
+            <li><strong>Phone:</strong> ${customerAdmin.phone || 'N/A'}</li>
+            <li><strong>Role:</strong> ${customerAdmin.role}</li>
+          </ul>
+
+          <p>Best regards,<br>The 4AMI System</p>
+        </div>
+      `;
+
+      await this.mailerService.sendMail({
+        to: systemAdminEmail,
+        subject: `New Company Registration: ${company.companyName}`,
+        html,
+      });
+
+      console.log(`Company registration notification sent successfully to ${systemAdminEmail}`);
+      return { success: true, systemAdminEmail };
+    } catch (error) {
+      console.error(`Failed to send company registration notification:`, error);
+      throw error;
+    }
+  }
+
+  @Process('send-user-credentials')
+  async handleSendUserCredentials(job: Job<{
+    user: User;
+    invitationCode: string;
+  }>) {
+    const { user, invitationCode } = job.data;
+
+    try {
+      const signupUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/customer-signup?token=${invitationCode}`;
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Welcome to 4AMI Platform</h2>
+          <p>Hello ${user.firstName} ${user.lastName},</p>
+          <p>Your account has been created on the 4AMI Platform. Please use the following information to complete your registration:</p>
+
+          <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p><strong>Email:</strong> ${user.email}</p>
+            <p><strong>Invitation Code:</strong> ${invitationCode}</p>
+            <p><strong>Role:</strong> ${user.role}</p>
+          </div>
+
+          <p>Click the link below to set up your password and complete your registration:</p>
+          <a href="${signupUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Complete Registration</a>
+
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p>${signupUrl}</p>
+
+          <p>Best regards,<br>The 4AMI Team</p>
+        </div>
+      `;
+
+      await this.mailerService.sendMail({
+        to: user.email,
+        subject: 'Your 4AMI Platform Account - Complete Registration',
+        html,
+      });
+
+      console.log(`User credentials email sent successfully to ${user.email}`);
+      return { success: true, email: user.email };
+    } catch (error) {
+      console.error(`Failed to send user credentials email to ${user.email}:`, error);
       throw error;
     }
   }

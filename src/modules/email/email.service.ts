@@ -4,6 +4,8 @@ import { Queue } from 'bull';
 
 import { SendEmailDto } from './dto/send-email.dto';
 import { SendInvitationDto } from './dto/send-invitation.dto';
+import { Company } from '../../entities/company.entity';
+import { User } from '../../entities/user.entity';
 
 @Injectable()
 export class EmailService {
@@ -60,10 +62,34 @@ export class EmailService {
       email,
       verificationToken,
     });
-    
+
     return {
       jobId: job.id.toString(),
       message: 'Email verification queued for sending',
+    };
+  }
+
+  async sendCompanyRegistrationNotification(company: Company, customerAdmin: User): Promise<{ jobId: string; message: string }> {
+    const job = await this.emailQueue.add('send-company-registration-notification', {
+      company,
+      customerAdmin,
+    });
+
+    return {
+      jobId: job.id.toString(),
+      message: 'Company registration notification queued for sending',
+    };
+  }
+
+  async sendUserCredentials(user: User, invitationCode: string): Promise<{ jobId: string; message: string }> {
+    const job = await this.emailQueue.add('send-user-credentials', {
+      user,
+      invitationCode,
+    });
+
+    return {
+      jobId: job.id.toString(),
+      message: 'User credentials email queued for sending',
     };
   }
 }

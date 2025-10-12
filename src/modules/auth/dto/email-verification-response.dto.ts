@@ -13,7 +13,7 @@ export class EmailVerificationResponseDto {
     lastName: string;
     title?: string;
     phone?: string;
-    company?: string;
+    companyName?: string;
     source?: string;
     role: UserRole;
     isActive: boolean;
