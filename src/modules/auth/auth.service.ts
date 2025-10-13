@@ -1,22 +1,16 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
+import {BadRequestException, ConflictException, Injectable, UnauthorizedException,} from '@nestjs/common';
+import {JwtService} from '@nestjs/jwt';
+import {InjectRepository} from '@nestjs/typeorm';
+import {Repository} from 'typeorm';
+import {v4 as uuidv4} from 'uuid';
 
-import { User } from '../../entities/user.entity';
-import { UserRole } from '../../common/enums/user-role.enum';
-import { SignUpDto } from './dto/signup.dto';
-import { SignInDto } from './dto/signin.dto';
-import { CustomerSignupDto } from './dto/customer-signup.dto';
-import { AuthResponseDto } from './dto/auth-response.dto';
-import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { EmailService } from '../email/email.service';
+import {User} from '../../entities/user.entity';
+import {UserRole} from '../../common/enums/user-role.enum';
+import {SignUpDto} from './dto/signup.dto';
+import {CustomerSignupDto} from './dto/customer-signup.dto';
+import {AuthResponseDto} from './dto/auth-response.dto';
+import {JwtPayload} from './interfaces/jwt-payload.interface';
+import {EmailService} from '../email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -80,7 +74,7 @@ export class AuthService {
       source, 
       role, 
       invitationCode,
-      agreeToTerms 
+      agreeToTerms,
     } = customerSignupDto;
 
     // Validate password confirmation
@@ -116,10 +110,10 @@ export class AuthService {
     invitedUser.password = password; // Let User entity handle hashing
     invitedUser.firstName = firstName;
     invitedUser.lastName = lastName;
-    invitedUser.title = title;
-    invitedUser.company = company;
-    invitedUser.phone = phone;
-    invitedUser.source = source;
+    if (title) invitedUser.title = title;
+    if (company) invitedUser.companyName = company;
+    if (phone) invitedUser.phone = phone;
+    if (source) invitedUser.source = source;
     invitedUser.role = role;
     invitedUser.isActive = true;
     invitedUser.isEmailVerified = true;
@@ -194,7 +188,7 @@ export class AuthService {
     user.lastName = userData.lastName;
     user.title = userData.title;
     user.phone = userData.phone;
-    user.company = userData.company;
+    user.companyName = userData.companyName;
     user.source = userData.source;
     user.role = userData.role;
     user.isActive = userData.isActive;
@@ -222,18 +216,18 @@ export class AuthService {
     return user;
   }
 
-  async verifyEmail(token: string): Promise<User> {
+  async verifyEmail(token: string, email: string): Promise<User> {
+    // Find user by both email and token where email is not verified
     const user = await this.userRepository.findOne({
-      where: { emailVerificationToken: token },
+      where: {
+        email,
+        emailVerificationToken: token,
+        isEmailVerified: false
+      },
     });
 
     if (!user) {
-      throw new BadRequestException('Invalid verification token');
-    }
-
-    // Check if user is already verified
-    if (user.isEmailVerified) {
-      return user; // Already verified, return user object
+      throw new ConflictException('Email and verification token do not match or user is already verified');
     }
 
     user.isEmailVerified = true;
@@ -241,7 +235,7 @@ export class AuthService {
     // Keep it for a short period to allow multiple verification attempts
     // The token will be cleared by a cleanup job or after a certain time
     await this.userRepository.save(user);
-    
+
     return user;
   }
 

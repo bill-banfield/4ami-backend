@@ -80,7 +80,7 @@ export class AuthController {
         lastName: result.user.lastName,
         title: result.user.title,
         phone: result.user.phone,
-        company: result.user.company,
+        companyName: result.user.companyName,
         source: result.user.source,
         role: result.user.role,
         isActive: result.user.isActive,
@@ -109,13 +109,26 @@ export class AuthController {
   }
 
   @Public()
-  @Get('verify-email/:token')
-  @ApiOperation({ summary: 'Verify email address' })
-  @ApiResponse({ status: 200, description: 'Email verified successfully', type: EmailVerificationResponseDto })
-  @ApiResponse({ status: 400, description: 'Invalid verification token' })
-  async verifyEmail(@Param('token') token: string): Promise<EmailVerificationResponseDto> {
-    const user = await this.authService.verifyEmail(token);
-    return { 
+  @Post('verify-email')
+  @ApiOperation({
+    summary: 'Verify email address',
+    description: 'Verify user email with token and email. Both token and email must match an unverified user.'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Email verified successfully',
+    type: EmailVerificationResponseDto
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Email and token do not match or user is already verified'
+  })
+  async verifyEmail(
+    @Body('token') token: string,
+    @Body('email') email: string,
+  ): Promise<EmailVerificationResponseDto> {
+    const user = await this.authService.verifyEmail(token, email);
+    return {
       message: 'Email verified successfully',
       user: {
         id: user.id,
@@ -124,7 +137,7 @@ export class AuthController {
         lastName: user.lastName,
         title: user.title,
         phone: user.phone,
-        company: user.company,
+        companyName: user.companyName,
         source: user.source,
         role: user.role,
         isActive: user.isActive,

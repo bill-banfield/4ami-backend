@@ -16,17 +16,20 @@ export class CustomerSignupDto {
   @IsString()
   title?: string;
 
-  @ApiProperty({ example: 'ABC Corporation' })
+  @ApiProperty({ example: 'ABC Corporation', required: false })
+  @IsOptional()
   @IsString()
-  company: string;
+  company?: string;
 
-  @ApiProperty({ example: '+1234567890' })
+  @ApiProperty({ example: '+1234567890', required: false })
+  @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
-  @ApiProperty({ example: 'How did you hear about us' })
+  @ApiProperty({ example: 'How did you hear about us', required: false })
+  @IsOptional()
   @IsString()
-  source: string;
+  source?: string;
 
   @ApiProperty({ 
     enum: UserRole, 

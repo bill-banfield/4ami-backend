@@ -43,26 +43,27 @@ export class UsersController {
   @ApiOperation({ summary: 'Create a new user' })
   @ApiResponse({ status: 201, description: 'User created successfully' })
   @ApiResponse({ status: 409, description: 'User already exists' })
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  create(@Body() createUserDto: CreateUserDto, @CurrentUser() user: User) {
+    return this.usersService.create(createUserDto, user.id);
   }
 
   @Get()
   @UseInterceptors(ClassSerializerInterceptor)
-  // @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Get all users with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Users retrieved successfully',
     type: [UserResponseDto]
   })
   findAll(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @CurrentUser() user: User,
   ) {
-    return this.usersService.findAll(page, limit);
+    return this.usersService.findAll(page, limit, user);
   }
 
   @Get('test-serialization')
@@ -91,14 +92,14 @@ export class UsersController {
   @UseInterceptors(ClassSerializerInterceptor)
   @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Get user by ID' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User retrieved successfully',
     type: UserResponseDto
   })
   @ApiResponse({ status: 404, description: 'User not found' })
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.usersService.findOne(id, user);
   }
 
   @Patch(':id')
@@ -106,17 +107,17 @@ export class UsersController {
   @ApiOperation({ summary: 'Update user' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @CurrentUser() user: User) {
+    return this.usersService.update(id, updateUserDto, user);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Delete user' })
   @ApiResponse({ status: 200, description: 'User deleted successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.usersService.remove(id, user);
   }
 
   @Post('invite')
@@ -124,8 +125,8 @@ export class UsersController {
   @ApiOperation({ summary: 'Invite a new user' })
   @ApiResponse({ status: 201, description: 'User invitation sent' })
   @ApiResponse({ status: 409, description: 'User already exists' })
-  inviteUser(@Body() inviteUserDto: InviteUserDto) {
-    return this.usersService.inviteUser(inviteUserDto);
+  inviteUser(@Body() inviteUserDto: InviteUserDto, @CurrentUser() user: User) {
+    return this.usersService.inviteUser(inviteUserDto, user.id);
   }
 
   @Get('verify-token/:token')
@@ -147,7 +148,7 @@ export class UsersController {
       lastName: user.lastName,
       title: user.title,
       phone: user.phone,
-      company: user.company,
+      companyName: user.companyName,
       source: user.source,
       role: user.role,
       isActive: user.isActive,
@@ -179,7 +180,7 @@ export class UsersController {
       lastName: user.lastName,
       title: user.title,
       phone: user.phone,
-      company: user.company,
+      companyName: user.companyName,
       source: user.source,
       role: user.role,
       isActive: user.isActive,
@@ -196,15 +197,15 @@ export class UsersController {
   @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Activate user account' })
   @ApiResponse({ status: 200, description: 'User activated successfully' })
-  activateUser(@Param('id') id: string) {
-    return this.usersService.activateUser(id);
+  activateUser(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.usersService.activateUser(id, user);
   }
 
   @Patch(':id/deactivate')
   @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Deactivate user account' })
   @ApiResponse({ status: 200, description: 'User deactivated successfully' })
-  deactivateUser(@Param('id') id: string) {
-    return this.usersService.deactivateUser(id);
+  deactivateUser(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.usersService.deactivateUser(id, user);
   }
 }
