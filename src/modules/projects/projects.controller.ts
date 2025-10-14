@@ -32,6 +32,13 @@ import { User } from '../../entities/user.entity';
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 
+  @Get('types')
+  @ApiOperation({ summary: 'Get available project types' })
+  @ApiResponse({ status: 200, description: 'Project types retrieved successfully' })
+  getProjectTypes() {
+    return this.projectsService.getProjectTypes();
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
@@ -88,6 +95,15 @@ export class ProjectsController {
     @CurrentUser() user: User,
   ) {
     return this.projectsService.updateStatus(id, status, user.id, user.role);
+  }
+
+  @Post(':id/submit')
+  @ApiOperation({ summary: 'Submit a draft project (changes status from DRAFT to PENDING and sends notifications)' })
+  @ApiResponse({ status: 200, description: 'Draft project submitted successfully' })
+  @ApiResponse({ status: 400, description: 'Project is not in DRAFT status' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  submitDraft(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.projectsService.submitDraft(id, user.id, user.role);
   }
 
   @Delete(':id')

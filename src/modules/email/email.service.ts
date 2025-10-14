@@ -92,4 +92,31 @@ export class EmailService {
       message: 'User credentials email queued for sending',
     };
   }
+
+  async sendProjectCreationNotification(
+    project: any,
+    creator: User,
+    company: Company,
+    recipients: string[],
+  ): Promise<{ jobId: string; message: string }> {
+    console.log('📧 EmailService.sendProjectCreationNotification called:', {
+      projectId: project.id,
+      projectName: project.name,
+      creatorEmail: creator.email,
+      companyName: company.companyName,
+      recipientsCount: recipients.length,
+    });
+
+    const job = await this.emailQueue.add('send-project-creation-notification', {
+      project,
+      creator,
+      company,
+      recipients,
+    });
+
+    return {
+      jobId: job.id.toString(),
+      message: 'Project creation notification queued for sending',
+    };
+  }
 }
