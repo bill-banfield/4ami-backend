@@ -2,15 +2,26 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
 import { Project } from '../../entities/project.entity';
 import { User } from '../../entities/user.entity';
+import { Company } from '../../entities/company.entity';
+import { ProjectType } from '../../entities/project-type.entity';
+import { ProjectClient } from '../../entities/project-client.entity';
+import { ProjectSource } from '../../entities/project-source.entity';
+import { ProjectEquipment } from '../../entities/project-equipment.entity';
+import { ProjectFinancial } from '../../entities/project-financial.entity';
+import { ProjectTransaction } from '../../entities/project-transaction.entity';
+import { ProjectUtilizationScenario } from '../../entities/project-utilization-scenario.entity';
 import { ProjectStatus } from '../../common/enums/project-status.enum';
+import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class ProjectsService {
@@ -19,20 +30,208 @@ export class ProjectsService {
     private projectRepository: Repository<Project>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Company)
+    private companyRepository: Repository<Company>,
+    @InjectRepository(ProjectType)
+    private projectTypeRepository: Repository<ProjectType>,
+    @InjectRepository(ProjectClient)
+    private projectClientRepository: Repository<ProjectClient>,
+    @InjectRepository(ProjectSource)
+    private projectSourceRepository: Repository<ProjectSource>,
+    @InjectRepository(ProjectEquipment)
+    private projectEquipmentRepository: Repository<ProjectEquipment>,
+    @InjectRepository(ProjectFinancial)
+    private projectFinancialRepository: Repository<ProjectFinancial>,
+    @InjectRepository(ProjectTransaction)
+    private projectTransactionRepository: Repository<ProjectTransaction>,
+    @InjectRepository(ProjectUtilizationScenario)
+    private projectUtilizationScenarioRepository: Repository<ProjectUtilizationScenario>,
+    private emailService: EmailService,
   ) {}
 
   async create(createProjectDto: CreateProjectDto, userId: string): Promise<Project> {
+    // Verify user exists and get companyId
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
+    // Verify project type exists and is active
+    const projectType = await this.projectTypeRepository.findOne({
+      where: { code: createProjectDto.projectTypeCode, isActive: true },
+    });
+    if (!projectType) {
+      throw new BadRequestException('Invalid or inactive project type');
+    }
+
+    // Determine status:
+    // - If status="draft" is provided → save as DRAFT (no emails)
+    // - If no status provided → save as PENDING (send emails)
+    // - Any other status → reject
+    let projectStatus: ProjectStatus;
+    if (createProjectDto.status) {
+      if (createProjectDto.status === ProjectStatus.DRAFT) {
+        projectStatus = ProjectStatus.DRAFT;
+      } else {
+        throw new BadRequestException('Only DRAFT status or no status (for immediate submission) is allowed during project creation');
+      }
+    } else {
+      // No status provided = immediate submission = PENDING
+      projectStatus = ProjectStatus.PENDING;
+    }
+
+    // Generate project number
+    const projectNumber = await this.generateProjectNumber();
+
+    // Create base project
     const project = this.projectRepository.create({
-      ...createProjectDto,
+      projectNumber,
+      name: createProjectDto.name,
+      description: createProjectDto.description,
+      startDate: createProjectDto.startDate,
+      endDate: createProjectDto.endDate,
+      metadata: createProjectDto.metadata,
+      status: projectStatus,
+      companyId: user.companyId,
+      projectTypeId: projectType.id,
       createdById: userId,
     });
 
-    return this.projectRepository.save(project);
+    const savedProject = await this.projectRepository.save(project);
+
+    // Create related entities if provided
+    if (createProjectDto.client) {
+      const client = this.projectClientRepository.create({
+        ...createProjectDto.client,
+        projectId: savedProject.id,
+      });
+      await this.projectClientRepository.save(client);
+    }
+
+    if (createProjectDto.source) {
+      const source = this.projectSourceRepository.create({
+        ...createProjectDto.source,
+        projectId: savedProject.id,
+      });
+      await this.projectSourceRepository.save(source);
+    }
+
+    if (createProjectDto.financial) {
+      const financial = this.projectFinancialRepository.create({
+        ...createProjectDto.financial,
+        projectId: savedProject.id,
+      });
+      await this.projectFinancialRepository.save(financial);
+    }
+
+    if (createProjectDto.transaction) {
+      const transaction = this.projectTransactionRepository.create({
+        ...createProjectDto.transaction,
+        projectId: savedProject.id,
+      });
+      await this.projectTransactionRepository.save(transaction);
+    }
+
+    if (createProjectDto.equipments && createProjectDto.equipments.length > 0) {
+      const equipments = createProjectDto.equipments.map((eq) =>
+        this.projectEquipmentRepository.create({
+          ...eq,
+          projectId: savedProject.id,
+        }),
+      );
+      await this.projectEquipmentRepository.save(equipments);
+    }
+
+    if (createProjectDto.utilizationScenarios && createProjectDto.utilizationScenarios.length > 0) {
+      const scenarios = createProjectDto.utilizationScenarios.map((scenario) =>
+        this.projectUtilizationScenarioRepository.create({
+          ...scenario,
+          projectId: savedProject.id,
+        }),
+      );
+      await this.projectUtilizationScenarioRepository.save(scenarios);
+    }
+
+    // Return project with all relations
+    const fullProject = await this.findOne(savedProject.id, userId, user.role);
+
+    // Send email notifications ONLY if project status is PENDING (i.e., submitted immediately)
+    if (projectStatus === ProjectStatus.PENDING) {
+      this.sendProjectCreationNotifications(fullProject, user).catch((error) => {
+        console.error('Failed to send project creation notifications:', error);
+        // Don't fail the project creation if email fails
+      });
+    }
+
+    return fullProject;
+  }
+
+  private async sendProjectCreationNotifications(project: Project, creator: User): Promise<void> {
+    try {
+      // Get company details
+      const company = await this.companyRepository.findOne({
+        where: { id: project.companyId },
+      });
+
+      if (!company) {
+        console.error('Company not found for project notification');
+        return;
+      }
+
+      // Build recipient list
+      const recipients: string[] = [];
+
+      // 1. Get all system admins (users with ADMIN role)
+      const systemAdmins = await this.userRepository.find({
+        where: {
+          role: UserRole.ADMIN,
+          isActive: true,
+        },
+      });
+
+      const systemAdminEmails = systemAdmins.map((admin) => admin.email);
+      recipients.push(...systemAdminEmails);
+
+      // 2. Get all CUSTOMER_ADMIN users from the same company
+      const companyAdmins = await this.userRepository.find({
+        where: {
+          companyId: project.companyId,
+          role: UserRole.CUSTOMER_ADMIN,
+          isActive: true,
+        },
+      });
+
+      const companyAdminEmails = companyAdmins.map((admin) => admin.email);
+      recipients.push(...companyAdminEmails);
+
+      // Remove duplicates
+      const uniqueRecipients = [...new Set(recipients)];
+
+      if (uniqueRecipients.length === 0) {
+        console.warn('No recipients found for project creation notification');
+        return;
+      }
+
+      // Send notification
+      await this.emailService.sendProjectCreationNotification(
+        project,
+        creator,
+        company,
+        uniqueRecipients,
+      );
+
+      console.log(`✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins)`);
+    } catch (error) {
+      console.error('Error in sendProjectCreationNotifications:', error);
+      throw error;
+    }
+  }
+
+  private async generateProjectNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const count = await this.projectRepository.count();
+    const sequence = String(count + 1).padStart(4, '0');
+    return `PROJ-${year}-${sequence}`;
   }
 
   async findAll(
@@ -74,14 +273,32 @@ export class ProjectsService {
   async findOne(id: string, userId?: string, userRole?: string): Promise<Project> {
     const queryBuilder = this.projectRepository
       .createQueryBuilder('project')
-      .leftJoinAndSelect('project.createdBy', 'createdBy')
+      // Select only specific fields for createdBy
+      .leftJoin('project.createdBy', 'createdBy')
+      .addSelect(['createdBy.id', 'createdBy.firstName', 'createdBy.lastName'])
+      // Select only specific fields for company
+      .leftJoin('project.company', 'company')
+      .addSelect(['company.id', 'company.companyName'])
+      // Select only specific fields for projectType
+      .leftJoin('project.projectType', 'projectType')
+      .addSelect(['projectType.id', 'projectType.name'])
+      // Load all fields for these relations
+      .leftJoinAndSelect('project.client', 'client')
+      .leftJoinAndSelect('project.source', 'source')
+      .leftJoinAndSelect('project.financial', 'financial')
+      .leftJoinAndSelect('project.transaction', 'transaction')
+      .leftJoinAndSelect('project.equipments', 'equipments')
+      .leftJoinAndSelect('project.utilizationScenarios', 'utilizationScenarios')
       .leftJoinAndSelect('project.assets', 'assets')
       .leftJoinAndSelect('project.reports', 'reports')
       .where('project.id = :id', { id });
 
-    // Check permissions
+    // Check permissions - scope by company
     if (userRole !== 'admin' && userId) {
-      queryBuilder.andWhere('project.createdById = :userId', { userId });
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user && user.companyId) {
+        queryBuilder.andWhere('project.companyId = :companyId', { companyId: user.companyId });
+      }
     }
 
     const project = await queryBuilder.getOne();
@@ -173,5 +390,47 @@ export class ProjectsService {
 
     project.status = status;
     return this.projectRepository.save(project);
+  }
+
+  async submitDraft(
+    id: string,
+    userId: string,
+    userRole?: string,
+  ): Promise<Project> {
+    const project = await this.findOne(id, userId, userRole);
+
+    // Check if user can update this project
+    if (userRole !== 'admin' && project.createdById !== userId) {
+      throw new ForbiddenException('You can only submit your own projects');
+    }
+
+    // Validate that project is in DRAFT status
+    if (project.status !== ProjectStatus.DRAFT) {
+      throw new BadRequestException(`Cannot submit project. Project is already in ${project.status} status. Only DRAFT projects can be submitted.`);
+    }
+
+    // Change status to PENDING
+    project.status = ProjectStatus.PENDING;
+    const updatedProject = await this.projectRepository.save(project);
+
+    // Get user details for email notification
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    // Send email notifications when draft is submitted
+    if (user) {
+      this.sendProjectCreationNotifications(updatedProject, user).catch((error) => {
+        console.error('Failed to send project submission notifications:', error);
+        // Don't fail the submission if email fails
+      });
+    }
+
+    return updatedProject;
+  }
+
+  async getProjectTypes(): Promise<ProjectType[]> {
+    return this.projectTypeRepository.find({
+      where: { isActive: true },
+      order: { name: 'ASC' },
+    });
   }
 }

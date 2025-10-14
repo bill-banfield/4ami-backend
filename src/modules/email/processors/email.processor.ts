@@ -268,4 +268,73 @@ export class EmailProcessor {
       throw error;
     }
   }
+
+  @Process('send-project-creation-notification')
+  async handleSendProjectCreationNotification(job: Job<{
+    project: any;
+    creator: User;
+    company: Company;
+    recipients: string[];
+  }>) {
+    const { project, creator, company, recipients } = job.data;
+
+    try {
+      const projectUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/projects/${project.id}`;
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>New Project Created</h2>
+          <p>A new project has been created on the 4AMI Platform.</p>
+
+          <h3>Project Details:</h3>
+          <ul>
+            <li><strong>Project Number:</strong> ${project.projectNumber}</li>
+            <li><strong>Project Name:</strong> ${project.name}</li>
+            <li><strong>Project Type:</strong> ${project.projectType?.name || 'N/A'}</li>
+            <li><strong>Status:</strong> ${project.status.toUpperCase()}</li>
+            ${project.startDate ? `<li><strong>Start Date:</strong> ${new Date(project.startDate).toLocaleDateString()}</li>` : ''}
+            ${project.description ? `<li><strong>Description:</strong> ${project.description}</li>` : ''}
+          </ul>
+
+          <h3>Company:</h3>
+          <ul>
+            <li><strong>Company Name:</strong> ${company.companyName}</li>
+            <li><strong>Company Email:</strong> ${company.companyEmail}</li>
+          </ul>
+
+          <h3>Created By:</h3>
+          <ul>
+            <li><strong>Name:</strong> ${creator.firstName} ${creator.lastName}</li>
+            <li><strong>Email:</strong> ${creator.email}</li>
+            <li><strong>Role:</strong> ${creator.role}</li>
+          </ul>
+
+          <p>Click the link below to view the project:</p>
+          <a href="${projectUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Project</a>
+
+          <p>If the button doesn't work, copy and paste this link into your browser:</p>
+          <p>${projectUrl}</p>
+
+          <p>Best regards,<br>The 4AMI System</p>
+        </div>
+      `;
+
+      // Send to all recipients
+      const emailPromises = recipients.map(recipientEmail =>
+        this.mailerService.sendMail({
+          to: recipientEmail,
+          subject: `New Project Created: ${project.name} (${project.projectNumber})`,
+          html,
+        })
+      );
+
+      await Promise.all(emailPromises);
+
+      console.log(`Project creation notifications sent successfully to ${recipients.length} recipients`);
+      return { success: true, recipients, projectId: project.id };
+    } catch (error) {
+      console.error(`Failed to send project creation notifications:`, error);
+      throw error;
+    }
+  }
 }
