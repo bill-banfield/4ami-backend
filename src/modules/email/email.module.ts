@@ -7,6 +7,7 @@ import { Queue } from 'bull';
 import { EmailService } from './email.service';
 import { EmailController } from './email.controller';
 import { EmailProcessor } from './processors/email.processor';
+import { EmailProviderFactory } from './providers/email-provider.factory';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { EmailProcessor } from './processors/email.processor';
       name: 'email',
     }),
   ],
-  providers: [EmailService, EmailProcessor],
+  providers: [EmailService, EmailProcessor, EmailProviderFactory],
   controllers: [EmailController],
   exports: [EmailService],
 })

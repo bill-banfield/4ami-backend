@@ -1,14 +1,14 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Injectable } from '@nestjs/common';
-import { MailerService } from '@nestjs-modules/mailer';
 import { Company } from '../../../entities/company.entity';
 import { User } from '../../../entities/user.entity';
+import { EmailProviderFactory } from '../providers/email-provider.factory';
 
 @Processor('email')
 @Injectable()
 export class EmailProcessor {
-  constructor(private mailerService: MailerService) {}
+  constructor(private emailProviderFactory: EmailProviderFactory) {}
 
   @Process('send-email')
   async handleSendEmail(job: Job<{
@@ -24,8 +24,9 @@ export class EmailProcessor {
     try {
       console.log(`📧 Attempting to send email to: ${to}`);
       console.log(`📧 Subject: ${subject}`);
-      
-      await this.mailerService.sendMail({
+
+      const provider = this.emailProviderFactory.getProvider();
+      const result = await provider.sendMail({
         to,
         subject,
         text,
@@ -33,6 +34,10 @@ export class EmailProcessor {
         cc,
         bcc,
       });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send email');
+      }
 
       console.log(`✅ Email sent successfully to ${to}`);
       return { success: true, to, subject };
@@ -77,11 +82,16 @@ export class EmailProcessor {
         </div>
       `;
 
-      await this.mailerService.sendMail({
+      const provider = this.emailProviderFactory.getProvider();
+      const result = await provider.sendMail({
         to: email,
         subject: 'Invitation to Join 4AMI Platform',
         html,
       });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send invitation email');
+      }
 
       console.log(`Invitation email sent successfully to ${email}`);
       return { success: true, email, role };
@@ -115,11 +125,16 @@ export class EmailProcessor {
         </div>
       `;
 
-      await this.mailerService.sendMail({
+      const provider = this.emailProviderFactory.getProvider();
+      const result = await provider.sendMail({
         to: email,
         subject: 'Password Reset Request - 4AMI Platform',
         html,
       });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send password reset email');
+      }
 
       console.log(`Password reset email sent successfully to ${email}`);
       return { success: true, email };
@@ -151,11 +166,16 @@ export class EmailProcessor {
         </div>
       `;
 
-      await this.mailerService.sendMail({
+      const provider = this.emailProviderFactory.getProvider();
+      const result = await provider.sendMail({
         to: email,
         subject: 'Verify Your Email - 4AMI Platform',
         html,
       });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send email verification');
+      }
 
       console.log(`Email verification sent successfully to ${email}`);
       return { success: true, email };
@@ -209,11 +229,16 @@ export class EmailProcessor {
         </div>
       `;
 
-      await this.mailerService.sendMail({
+      const provider = this.emailProviderFactory.getProvider();
+      const result = await provider.sendMail({
         to: systemAdminEmail,
         subject: `New Company Registration: ${company.companyName}`,
         html,
       });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send company registration notification');
+      }
 
       console.log(`Company registration notification sent successfully to ${systemAdminEmail}`);
       return { success: true, systemAdminEmail };
@@ -255,11 +280,16 @@ export class EmailProcessor {
         </div>
       `;
 
-      await this.mailerService.sendMail({
+      const provider = this.emailProviderFactory.getProvider();
+      const result = await provider.sendMail({
         to: user.email,
         subject: 'Your 4AMI Platform Account - Complete Registration',
         html,
       });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send user credentials email');
+      }
 
       console.log(`User credentials email sent successfully to ${user.email}`);
       return { success: true, email: user.email };
@@ -320,15 +350,22 @@ export class EmailProcessor {
       `;
 
       // Send to all recipients
+      const provider = this.emailProviderFactory.getProvider();
       const emailPromises = recipients.map(recipientEmail =>
-        this.mailerService.sendMail({
+        provider.sendMail({
           to: recipientEmail,
           subject: `New Project Created: ${project.name} (${project.projectNumber})`,
           html,
         })
       );
 
-      await Promise.all(emailPromises);
+      const results = await Promise.all(emailPromises);
+
+      // Check if any emails failed
+      const failedEmails = results.filter(result => !result.success);
+      if (failedEmails.length > 0) {
+        throw new Error(`Failed to send ${failedEmails.length} emails`);
+      }
 
       console.log(`Project creation notifications sent successfully to ${recipients.length} recipients`);
       return { success: true, recipients, projectId: project.id };

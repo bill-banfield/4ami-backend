@@ -238,9 +238,9 @@ export class ProjectsService {
     page: number = 1,
     limit: number = 10,
     userId?: string,
-    userRole?: string,
+    userRole?: UserRole,
   ): Promise<{
-    projects: Project[];
+    projects: any[];
     total: number;
     page: number;
     limit: number;
@@ -248,11 +248,35 @@ export class ProjectsService {
     const queryBuilder = this.projectRepository
       .createQueryBuilder('project')
       .leftJoinAndSelect('project.createdBy', 'createdBy')
+      .leftJoinAndSelect('project.company', 'company')
       .leftJoinAndSelect('project.assets', 'assets')
       .leftJoinAndSelect('project.reports', 'reports');
 
-    // Filter by user if not admin
-    if (userRole !== 'admin' && userId) {
+    // Apply role-based filtering
+    if (userRole === UserRole.ADMIN) {
+      // System Admin: See all projects EXCEPT DRAFT
+      queryBuilder.where('project.status != :draftStatus', {
+        draftStatus: ProjectStatus.DRAFT
+      });
+    } else if (userRole === UserRole.CUSTOMER_ADMIN && userId) {
+      // Customer Admin: See all projects from their company EXCEPT DRAFT
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user && user.companyId) {
+        queryBuilder
+          .where('project.companyId = :companyId', { companyId: user.companyId })
+          .andWhere('project.status != :draftStatus', {
+            draftStatus: ProjectStatus.DRAFT
+          });
+      }
+    } else if (userRole === UserRole.CUSTOMER_USER && userId) {
+      // Customer User: See only their own DRAFT and PENDING projects
+      queryBuilder
+        .where('project.createdById = :userId', { userId })
+        .andWhere('project.status IN (:...allowedStatuses)', {
+          allowedStatuses: [ProjectStatus.DRAFT, ProjectStatus.PENDING]
+        });
+    } else if (userId) {
+      // Fallback: if role not recognized, show only user's own projects
       queryBuilder.where('project.createdById = :userId', { userId });
     }
 
@@ -262,15 +286,29 @@ export class ProjectsService {
       .orderBy('project.createdAt', 'DESC')
       .getManyAndCount();
 
+    // Transform the response to include only specific fields for createdBy and company
+    const transformedProjects = projects.map(project => ({
+      ...project,
+      createdBy: project.createdBy ? {
+        id: project.createdBy.id,
+        firstName: project.createdBy.firstName,
+        lastName: project.createdBy.lastName,
+      } : null,
+      company: project.company ? {
+        id: project.company.id,
+        companyName: project.company.companyName,
+      } : null,
+    }));
+
     return {
-      projects,
+      projects: transformedProjects,
       total,
       page,
       limit,
     };
   }
 
-  async findOne(id: string, userId?: string, userRole?: string): Promise<Project> {
+  async findOne(id: string, userId?: string, userRole?: UserRole): Promise<Project> {
     const queryBuilder = this.projectRepository
       .createQueryBuilder('project')
       // Select only specific fields for createdBy
@@ -294,7 +332,7 @@ export class ProjectsService {
       .where('project.id = :id', { id });
 
     // Check permissions - scope by company
-    if (userRole !== 'admin' && userId) {
+    if (userRole !== UserRole.ADMIN && userId) {
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (user && user.companyId) {
         queryBuilder.andWhere('project.companyId = :companyId', { companyId: user.companyId });
@@ -314,12 +352,12 @@ export class ProjectsService {
     id: string,
     updateProjectDto: UpdateProjectDto,
     userId: string,
-    userRole?: string,
+    userRole?: UserRole,
   ): Promise<Project> {
     const project = await this.findOne(id, userId, userRole);
 
     // Check if user can update this project
-    if (userRole !== 'admin' && project.createdById !== userId) {
+    if (userRole !== UserRole.ADMIN && project.createdById !== userId) {
       throw new ForbiddenException('You can only update your own projects');
     }
 
@@ -327,18 +365,18 @@ export class ProjectsService {
     return this.projectRepository.save(project);
   }
 
-  async remove(id: string, userId: string, userRole?: string): Promise<void> {
+  async remove(id: string, userId: string, userRole?: UserRole): Promise<void> {
     const project = await this.findOne(id, userId, userRole);
 
     // Check if user can delete this project
-    if (userRole !== 'admin' && project.createdById !== userId) {
+    if (userRole !== UserRole.ADMIN && project.createdById !== userId) {
       throw new ForbiddenException('You can only delete your own projects');
     }
 
     await this.projectRepository.remove(project);
   }
 
-  async getDashboardStats(userId?: string, userRole?: string): Promise<{
+  async getDashboardStats(userId?: string, userRole?: UserRole): Promise<{
     totalProjects: number;
     pendingProjects: number;
     inProgressProjects: number;
@@ -348,7 +386,7 @@ export class ProjectsService {
     const queryBuilder = this.projectRepository.createQueryBuilder('project');
 
     // Filter by user if not admin
-    if (userRole !== 'admin' && userId) {
+    if (userRole !== UserRole.ADMIN && userId) {
       queryBuilder.where('project.createdById = :userId', { userId });
     }
 
@@ -379,12 +417,12 @@ export class ProjectsService {
     id: string,
     status: ProjectStatus,
     userId: string,
-    userRole?: string,
+    userRole?: UserRole,
   ): Promise<Project> {
     const project = await this.findOne(id, userId, userRole);
 
     // Check if user can update this project
-    if (userRole !== 'admin' && project.createdById !== userId) {
+    if (userRole !== UserRole.ADMIN && project.createdById !== userId) {
       throw new ForbiddenException('You can only update your own projects');
     }
 
@@ -395,12 +433,12 @@ export class ProjectsService {
   async submitDraft(
     id: string,
     userId: string,
-    userRole?: string,
+    userRole?: UserRole,
   ): Promise<Project> {
     const project = await this.findOne(id, userId, userRole);
 
     // Check if user can update this project
-    if (userRole !== 'admin' && project.createdById !== userId) {
+    if (userRole !== UserRole.ADMIN && project.createdById !== userId) {
       throw new ForbiddenException('You can only submit your own projects');
     }
 
