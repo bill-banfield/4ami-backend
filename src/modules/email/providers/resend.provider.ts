@@ -26,6 +26,12 @@ export class ResendEmailProvider implements IEmailProvider {
     try {
       this.logger.log(`Sending email via Resend to: ${options.to}`);
 
+      // Prepare attachments in Resend format
+      const attachments = options.attachments?.map(att => ({
+        filename: att.filename,
+        content: att.content instanceof Buffer ? att.content : Buffer.from(att.content),
+      }));
+
       const { data, error } = await this.resend.emails.send({
         from: options.from || this.fromEmail,
         to: Array.isArray(options.to) ? options.to : [options.to],
@@ -34,6 +40,7 @@ export class ResendEmailProvider implements IEmailProvider {
         html: options.html,
         cc: options.cc,
         bcc: options.bcc,
+        attachments,
       });
 
       if (error) {
