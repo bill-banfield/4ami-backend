@@ -14,6 +14,13 @@ export class SmtpEmailProvider implements IEmailProvider {
     try {
       this.logger.log(`Sending email via SMTP to: ${options.to}`);
 
+      // Prepare attachments in SMTP format
+      const attachments = options.attachments?.map(att => ({
+        filename: att.filename,
+        content: att.content,
+        contentType: att.contentType,
+      }));
+
       await this.mailerService.sendMail({
         to: options.to,
         subject: options.subject,
@@ -22,6 +29,7 @@ export class SmtpEmailProvider implements IEmailProvider {
         cc: options.cc,
         bcc: options.bcc,
         from: options.from,
+        attachments,
       });
 
       this.logger.log(`Email sent successfully via SMTP to ${options.to}`);

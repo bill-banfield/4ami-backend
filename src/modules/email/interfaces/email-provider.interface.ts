@@ -1,3 +1,9 @@
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer | string;
+  contentType?: string;
+}
+
 export interface EmailOptions {
   to: string | string[];
   subject: string;
@@ -6,6 +12,7 @@ export interface EmailOptions {
   cc?: string[];
   bcc?: string[];
   from?: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface EmailResponse {

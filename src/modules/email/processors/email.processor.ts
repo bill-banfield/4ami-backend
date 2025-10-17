@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { Company } from '../../../entities/company.entity';
 import { User } from '../../../entities/user.entity';
 import { EmailProviderFactory } from '../providers/email-provider.factory';
+import { ProjectExcelGenerator } from '../utils/project-excel-generator';
 
 @Processor('email')
 @Injectable()
@@ -339,6 +340,8 @@ export class EmailProcessor {
             <li><strong>Role:</strong> ${creator.role}</li>
           </ul>
 
+          <p>Please find the complete project details in the attached Excel file.</p>
+
           <p>Click the link below to view the project:</p>
           <a href="${projectUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Project</a>
 
@@ -349,6 +352,10 @@ export class EmailProcessor {
         </div>
       `;
 
+      // Generate Excel attachment
+      const excelBuffer = await ProjectExcelGenerator.generateProjectExcel(project, creator, company);
+      const fileName = `Project_${project.projectNumber}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
       // Send to all recipients
       const provider = this.emailProviderFactory.getProvider();
       const emailPromises = recipients.map(recipientEmail =>
@@ -356,6 +363,13 @@ export class EmailProcessor {
           to: recipientEmail,
           subject: `New Project Created: ${project.name} (${project.projectNumber})`,
           html,
+          attachments: [
+            {
+              filename: fileName,
+              content: excelBuffer,
+              contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            },
+          ],
         })
       );
 
@@ -367,7 +381,7 @@ export class EmailProcessor {
         throw new Error(`Failed to send ${failedEmails.length} emails`);
       }
 
-      console.log(`Project creation notifications sent successfully to ${recipients.length} recipients`);
+      console.log(`Project creation notifications sent successfully to ${recipients.length} recipients with Excel attachment`);
       return { success: true, recipients, projectId: project.id };
     } catch (error) {
       console.error(`Failed to send project creation notifications:`, error);
