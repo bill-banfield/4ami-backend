@@ -15,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { CompaniesModule } from './modules/companies/companies.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { ProjectTypesModule } from './modules/project-types/project-types.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { EmailModule } from './modules/email/email.module';
@@ -144,6 +145,7 @@ import { CommonModule } from './common/common.module';
     UsersModule,
     CompaniesModule,
     ProjectsModule,
+    ProjectTypesModule,
     AssetsModule,
     ReportsModule,
     EmailModule,
