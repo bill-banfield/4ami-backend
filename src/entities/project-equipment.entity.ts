@@ -50,6 +50,9 @@ export class ProjectEquipment {
   @Column({ nullable: true })
   environmentRanking: string;
 
+  @Column({ type: 'text', nullable: true })
+  note: string;
+
   @OneToMany(() => ProjectUtilizationScenario, (scenario) => scenario.equipment)
   utilizationScenarios: ProjectUtilizationScenario[];
 

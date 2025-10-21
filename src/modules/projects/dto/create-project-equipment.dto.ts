@@ -46,4 +46,9 @@ export class CreateProjectEquipmentDto {
   @IsOptional()
   @IsString()
   environmentRanking?: string;
+
+  @ApiProperty({ required: false, example: 'Additional notes about the equipment' })
+  @IsOptional()
+  @IsString()
+  note?: string;
 }

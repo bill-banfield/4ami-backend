@@ -43,6 +43,9 @@ export class Project {
   })
   status: ProjectStatus;
 
+  @Column({ type: 'timestamp', nullable: true })
+  submitDate: Date;
+
   @Column({ type: 'date', nullable: true })
   startDate: Date;
 
