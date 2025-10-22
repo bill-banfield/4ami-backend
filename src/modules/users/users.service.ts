@@ -204,8 +204,16 @@ export class UsersService {
       }
     }
 
-    Object.assign(user, updateUserDto);
-    return this.userRepository.save(user);
+    // Use update query to avoid triggering BeforeUpdate hooks that would re-hash the password
+    await this.userRepository.update(id, updateUserDto);
+
+    // Fetch and return the updated user
+    const updatedUser = await this.userRepository.findOne({
+      where: { id },
+      relations: ['company'],
+    });
+
+    return updatedUser;
   }
 
   async remove(id: string, currentUser?: User): Promise<void> {
@@ -297,8 +305,16 @@ export class UsersService {
       }
     }
 
-    user.isActive = true;
-    return this.userRepository.save(user);
+    // Use update query to avoid triggering BeforeUpdate hooks
+    await this.userRepository.update(id, { isActive: true });
+
+    // Fetch and return the updated user
+    const updatedUser = await this.userRepository.findOne({
+      where: { id },
+      relations: ['company'],
+    });
+
+    return updatedUser;
   }
 
   async deactivateUser(id: string, currentUser?: User): Promise<User> {
@@ -318,8 +334,16 @@ export class UsersService {
       }
     }
 
-    user.isActive = false;
-    return this.userRepository.save(user);
+    // Use update query to avoid triggering BeforeUpdate hooks
+    await this.userRepository.update(id, { isActive: false });
+
+    // Fetch and return the updated user
+    const updatedUser = await this.userRepository.findOne({
+      where: { id },
+      relations: ['company'],
+    });
+
+    return updatedUser;
   }
 
   async getDashboardStats(): Promise<{

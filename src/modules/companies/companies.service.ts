@@ -49,9 +49,8 @@ export class CompaniesService {
 
     const savedCompany = await this.companyRepository.save(company);
 
-    // Update user's companyId
-    user.companyId = savedCompany.id;
-    await this.userRepository.save(user);
+    // Update user's companyId using query builder to avoid triggering BeforeUpdate hooks
+    await this.userRepository.update(userId, { companyId: savedCompany.id });
 
     // Send email notification to system admin
     try {

@@ -83,6 +83,9 @@ export class ProjectsService {
     // Generate project number
     const projectNumber = await this.generateProjectNumber();
 
+    // Determine submitDate
+    const submitDate = projectStatus === ProjectStatus.PENDING ? new Date() : null;
+
     // Create base project
     const project = this.projectRepository.create({
       projectNumber,
@@ -92,14 +95,15 @@ export class ProjectsService {
       endDate: createProjectDto.endDate,
       metadata: createProjectDto.metadata,
       status: projectStatus,
+      submitDate: submitDate,
       companyId: user.companyId,
       projectTypeId: projectType.id,
       createdById: userId,
     });
 
     const savedProject = await this.projectRepository.save(project);
-
     // Create related entities if provided
+
     if (createProjectDto.client) {
       const client = this.projectClientRepository.create({
         ...createProjectDto.client,
@@ -228,10 +232,57 @@ export class ProjectsService {
   }
 
   private async generateProjectNumber(): Promise<string> {
+    const maxRetries = 10;
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        const year = new Date().getFullYear();
+
+        // Find the highest existing project number for the current year
+        // This prevents duplicates even if projects are deleted
+        const latestProject = await this.projectRepository
+          .createQueryBuilder('project')
+          .where('project.projectNumber LIKE :yearPattern', { yearPattern: `${year}%` })
+          .orderBy('project.projectNumber', 'DESC')
+          .limit(1)
+          .getOne();
+
+        let sequence = 1;
+
+        if (latestProject && latestProject.projectNumber) {
+          // Extract the sequence number from the latest project number
+          // Format: YYYYSSSS (e.g., 20250001)
+          const lastSequence = parseInt(latestProject.projectNumber.substring(4), 10);
+          if (!isNaN(lastSequence)) {
+            sequence = lastSequence + 1;
+          }
+        }
+
+        const sequenceStr = String(sequence).padStart(4, '0');
+        const projectNumber = `${year}${sequenceStr}`;
+
+        // Double-check for uniqueness (handles race conditions)
+        const exists = await this.projectRepository.findOne({
+          where: { projectNumber },
+        });
+
+        if (!exists) {
+          return projectNumber;
+        }
+
+        // If duplicate found, increment attempt and try again
+        attempt++;
+      } catch (error) {
+        console.error('Error generating project number:', error);
+        attempt++;
+      }
+    }
+
+    // Fallback: if all retries fail, use timestamp-based unique number
+    const timestamp = Date.now().toString().slice(-6);
     const year = new Date().getFullYear();
-    const count = await this.projectRepository.count();
-    const sequence = String(count + 1).padStart(4, '0');
-    return `PROJ-${year}-${sequence}`;
+    return `${year}${timestamp}`;
   }
 
   async findAll(
@@ -361,7 +412,17 @@ export class ProjectsService {
       throw new ForbiddenException('You can only update your own projects');
     }
 
+    // Track if status is changing from DRAFT to PENDING
+    const wasInDraft = project.status === ProjectStatus.DRAFT;
+    const isChangingToPending = updateProjectDto.status === ProjectStatus.PENDING;
+
     Object.assign(project, updateProjectDto);
+
+    // Set submitDate when transitioning from DRAFT to PENDING
+    if (wasInDraft && isChangingToPending && !project.submitDate) {
+      project.submitDate = new Date();
+    }
+
     return this.projectRepository.save(project);
   }
 
@@ -447,8 +508,10 @@ export class ProjectsService {
       throw new BadRequestException(`Cannot submit project. Project is already in ${project.status} status. Only DRAFT projects can be submitted.`);
     }
 
-    // Change status to PENDING
+    // Change status to PENDING and set submitDate
     project.status = ProjectStatus.PENDING;
+    project.submitDate = new Date();
+
     const updatedProject = await this.projectRepository.save(project);
 
     // Get user details for email notification

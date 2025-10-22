@@ -133,9 +133,8 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    // Update last login
-    user.lastLoginAt = new Date();
-    await this.userRepository.save(user);
+    // Update last login using query to avoid triggering BeforeUpdate hooks
+    await this.userRepository.update(user.id, { lastLoginAt: new Date() });
 
     const token = this.generateToken(user);
     console.log('✅ SignIn successful, returning user and token');
@@ -230,11 +229,11 @@ export class AuthService {
       throw new ConflictException('Email and verification token do not match or user is already verified');
     }
 
-    user.isEmailVerified = true;
+    // Use update query to avoid triggering BeforeUpdate hooks
     // Don't set emailVerificationToken to null immediately
     // Keep it for a short period to allow multiple verification attempts
     // The token will be cleared by a cleanup job or after a certain time
-    await this.userRepository.save(user);
+    await this.userRepository.update(user.id, { isEmailVerified: true });
 
     return user;
   }
@@ -245,8 +244,8 @@ export class AuthService {
     });
 
     if (user && user.isEmailVerified) {
-      user.emailVerificationToken = null;
-      await this.userRepository.save(user);
+      // Use update query to avoid triggering BeforeUpdate hooks
+      await this.userRepository.update(user.id, { emailVerificationToken: null });
     }
   }
 
@@ -273,13 +272,18 @@ export class AuthService {
       return;
     }
 
-    user.passwordResetToken = uuidv4();
-    user.passwordResetExpires = new Date(Date.now() + 3600000); // 1 hour
-    await this.userRepository.save(user);
+    const resetToken = uuidv4();
+    const resetExpires = new Date(Date.now() + 3600000); // 1 hour
+
+    // Use update query to avoid triggering BeforeUpdate hooks
+    await this.userRepository.update(user.id, {
+      passwordResetToken: resetToken,
+      passwordResetExpires: resetExpires
+    });
 
     // Send password reset email
     try {
-      await this.emailService.sendPasswordReset(email, user.passwordResetToken);
+      await this.emailService.sendPasswordReset(email, resetToken);
     } catch (error) {
       console.error('Failed to send password reset email:', error);
       // Don't fail the request if email fails
