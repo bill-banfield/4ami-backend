@@ -1,0 +1,33 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+# AWS Configuration
+aws_region = "us-east-1"
+project_name = "4ami"
+
+# Database Configuration
+db_instance_class = "db.t3.micro"  # Change to db.t3.small or larger for production
+db_name = "4ami_db"
+db_username = "4ami_user"
+db_password = "your-secure-database-password-here"
+
+# Security Settings
+skip_final_snapshot = false  # Set to true for development/testing
+deletion_protection = true   # Set to false for development/testing
+
+# ECS Configuration
+task_cpu = 512      # 0.5 vCPU
+task_memory = 1024  # 1 GB RAM
+desired_count = 1   # Number of running tasks
+
+# Application Secrets
+jwt_secret = "your-super-secret-jwt-key-here-make-it-long-and-random"
+
+# Email Configuration
+mail_host = "smtp.gmail.com"
+mail_port = "587"
+mail_user = "your-email@gmail.com"
+mail_pass = "your-app-password"  # Use App Password for Gmail
+mail_from = "noreply@4ami.com"
+
+# Frontend URL
+frontend_url = "https://your-frontend-domain.com"

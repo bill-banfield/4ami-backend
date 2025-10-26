@@ -67,15 +67,15 @@ jobs:
 
     - name: Terraform Init
       run: terraform init
-      working-directory: ../aws-deployment/terraform
+      working-directory: aws-deployment/terraform
 
     - name: Terraform Plan
       run: terraform plan -out=tfplan
-      working-directory: ../aws-deployment/terraform
+      working-directory: aws-deployment/terraform
 
     - name: Terraform Apply
       run: terraform apply -auto-approve tfplan
-      working-directory: ../aws-deployment/terraform
+      working-directory: aws-deployment/terraform
 
   build-and-push:
     name: Build and Push Docker Image
