@@ -479,38 +479,4 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
-# Outputs
-output "vpc_id" {
-  description = "ID of the VPC"
-  value       = aws_vpc.main.id
-}
-
-output "rds_endpoint" {
-  description = "RDS instance endpoint"
-  value       = aws_db_instance.main.endpoint
-}
-
-output "rds_port" {
-  description = "RDS instance port"
-  value       = aws_db_instance.main.port
-}
-
-output "alb_dns_name" {
-  description = "DNS name of the load balancer"
-  value       = aws_lb.main.dns_name
-}
-
-output "alb_zone_id" {
-  description = "Zone ID of the load balancer"
-  value       = aws_lb.main.zone_id
-}
-
-output "ecr_repository_url" {
-  description = "URL of the ECR repository"
-  value       = aws_ecr_repository.main.repository_url
-}
-
-output "api_url" {
-  description = "API URL"
-  value       = "https://${aws_lb.main.dns_name}/api/v1"
-}
+# Outputs are defined in outputs.tf
