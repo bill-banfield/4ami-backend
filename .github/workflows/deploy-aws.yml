@@ -1,0 +1,187 @@
+name: Deploy 4AMI Backend to AWS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: 4ami-repo
+  ECS_SERVICE: 4ami-service
+  ECS_CLUSTER: 4ami-cluster
+  ECS_TASK_DEFINITION: 4ami-task
+  CONTAINER_NAME: 4ami-container
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: npm run lint
+
+    - name: Run tests
+      run: npm run test
+
+    - name: Build application
+      run: npm run build
+
+  build-and-push:
+    name: Build and Push Docker Image
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build a docker container and push it to ECR
+        docker build -f aws-deployment/docker/Dockerfile.aws -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -f aws-deployment/docker/Dockerfile.aws -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy to AWS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Download task definition
+      run: |
+        aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --query taskDefinition > task-definition.json
+
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ needs.build-and-push.outputs.image }}
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+  test-deployment:
+    name: Test Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Get Load Balancer DNS
+      id: get-alb-dns
+      run: |
+        ALB_DNS=$(aws elbv2 describe-load-balancers --names 4ami-alb --query 'LoadBalancers[0].DNSName' --output text)
+        echo "alb-dns=$ALB_DNS" >> $GITHUB_OUTPUT
+        echo "API URL: https://$ALB_DNS/api/v1"
+
+    - name: Wait for deployment to be ready
+      run: |
+        echo "Waiting for deployment to be ready..."
+        sleep 60
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        pip install requests
+
+    - name: Run deployment tests
+      run: |
+        python aws-deployment/tests/test-backend-deployment.py --url https://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
+
+    - name: Setup Node.js for additional tests
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Run frontend-backend connection tests
+      run: |
+        node aws-deployment/tests/test-frontend-backend-connection.js https://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
+
+  notify:
+    name: Notify Deployment Status
+    needs: [deploy, test-deployment]
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Notify Success
+      if: needs.test-deployment.result == 'success'
+      run: |
+        echo "🎉 Deployment successful!"
+        echo "Backend is now running on AWS"
+        echo "Check the deployment in AWS Console"
+
+    - name: Notify Failure
+      if: needs.test-deployment.result == 'failure'
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Check the logs for more details"
+        exit 1
