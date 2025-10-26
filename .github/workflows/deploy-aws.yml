@@ -72,13 +72,49 @@ jobs:
       run: |
         echo "🔍 Checking for existing resources that might conflict..."
         echo "Checking VPCs..."
-        aws ec2 describe-vpcs --filters "Name=tag:Name,Values=4ami-backend-vpc" --query 'Vpcs[].VpcId' --output text || echo "No existing VPCs found"
+        aws ec2 describe-vpcs --filters "Name=tag:Name,Values=ami-backend-vpc" --query 'Vpcs[].VpcId' --output text || echo "No existing VPCs found"
         echo "Checking RDS instances..."
-        aws rds describe-db-instances --query 'DBInstances[?contains(DBInstanceIdentifier, `4ami-backend`)].DBInstanceIdentifier' --output text || echo "No existing RDS instances found"
+        aws rds describe-db-instances --query 'DBInstances[?contains(DBInstanceIdentifier, `ami-backend`)].DBInstanceIdentifier' --output text || echo "No existing RDS instances found"
         echo "Checking ECR repositories..."
-        aws ecr describe-repositories --repository-names 4ami-repo-backend --query 'repositories[].repositoryName' --output text || echo "No existing ECR repository found"
+        aws ecr describe-repositories --repository-names ami-backend-repo --query 'repositories[].repositoryName' --output text || echo "No existing ECR repository found"
+        echo "Checking IAM roles..."
+        aws iam get-role --role-name ami-backend-ecs-execution-role --query 'Role.RoleName' --output text || echo "No existing execution role found"
+        aws iam get-role --role-name ami-backend-ecs-task-role --query 'Role.RoleName' --output text || echo "No existing task role found"
+        echo "Checking CloudWatch log groups..."
+        aws logs describe-log-groups --log-group-name-prefix "/ecs/ami-backend" --query 'logGroups[].logGroupName' --output text || echo "No existing log groups found"
         echo "✅ Resource check completed"
       timeout-minutes: 3
+
+    - name: Clean up conflicting resources
+      run: |
+        echo "🧹 Cleaning up conflicting resources..."
+        
+        # Delete ECR repository if it exists
+        if aws ecr describe-repositories --repository-names ami-backend-repo >/dev/null 2>&1; then
+          echo "Deleting existing ECR repository..."
+          aws ecr delete-repository --repository-name ami-backend-repo --force
+        fi
+        
+        # Delete CloudWatch log group if it exists
+        if aws logs describe-log-groups --log-group-name-prefix "/ecs/ami-backend" --query 'logGroups[].logGroupName' --output text | grep -q "/ecs/ami-backend"; then
+          echo "Deleting existing CloudWatch log group..."
+          aws logs delete-log-group --log-group-name "/ecs/ami-backend"
+        fi
+        
+        # Delete IAM roles if they exist
+        if aws iam get-role --role-name ami-backend-ecs-execution-role >/dev/null 2>&1; then
+          echo "Deleting existing ECS execution role..."
+          aws iam detach-role-policy --role-name ami-backend-ecs-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+          aws iam delete-role --role-name ami-backend-ecs-execution-role
+        fi
+        
+        if aws iam get-role --role-name ami-backend-ecs-task-role >/dev/null 2>&1; then
+          echo "Deleting existing ECS task role..."
+          aws iam delete-role --role-name ami-backend-ecs-task-role
+        fi
+        
+        echo "✅ Cleanup completed"
+      timeout-minutes: 5
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
