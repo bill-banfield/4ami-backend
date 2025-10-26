@@ -60,22 +60,50 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Verify AWS connection
+      run: |
+        echo "🔐 Verifying AWS connection..."
+        aws sts get-caller-identity
+        echo "🌍 AWS Region: $AWS_REGION"
+        echo "✅ AWS connection verified"
+      timeout-minutes: 2
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: '1.6.0'
 
     - name: Terraform Init
-      run: terraform init
+      run: |
+        echo "🚀 Initializing Terraform..."
+        terraform init -upgrade
+        echo "✅ Terraform initialized successfully"
       working-directory: aws-deployment/terraform
+      timeout-minutes: 5
+
+    - name: Terraform Validate
+      run: |
+        echo "🔍 Validating Terraform configuration..."
+        terraform validate
+        echo "✅ Terraform configuration is valid"
+      working-directory: aws-deployment/terraform
+      timeout-minutes: 2
 
     - name: Terraform Plan
-      run: terraform plan -out=tfplan
+      run: |
+        echo "📋 Creating Terraform plan..."
+        terraform plan -out=tfplan -detailed-exitcode
+        echo "✅ Terraform plan created successfully"
       working-directory: aws-deployment/terraform
+      timeout-minutes: 10
 
     - name: Terraform Apply
-      run: terraform apply -auto-approve tfplan
+      run: |
+        echo "🏗️ Applying Terraform configuration..."
+        terraform apply -auto-approve tfplan
+        echo "✅ Terraform applied successfully"
       working-directory: aws-deployment/terraform
+      timeout-minutes: 15
 
   build-and-push:
     name: Build and Push Docker Image
