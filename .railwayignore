@@ -1,0 +1,42 @@
+# Development files
+node_modules
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.development
+.env.test
+
+# Development Docker files
+docker-compose.yml
+docker-compose.dev.yml
+Dockerfile.dev
+
+# Development scripts
+start-dev.sh
+Makefile
+
+# Logs
+logs/
+*.log
+
+# Test files
+test/
+coverage/
+*.spec.ts
+*.test.ts
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
