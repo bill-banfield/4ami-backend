@@ -105,10 +105,16 @@ jobs:
       run: |
         echo "📋 Creating Terraform plan..."
         echo "🔍 Running terraform plan with verbose output..."
-        terraform plan -out=tfplan -detailed-exitcode -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" -var="skip_final_snapshot=true" -var="deletion_protection=false"
+        terraform plan -out=tfplan -detailed-exitcode \
+          -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
+          -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
+          -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
+          -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
+          -var="skip_final_snapshot=true" \
+          -var="deletion_protection=false"
         echo "✅ Terraform plan created successfully"
       working-directory: aws-deployment/terraform
-      timeout-minutes: 20
+      timeout-minutes: 10
 
     - name: Terraform Apply
       run: |
