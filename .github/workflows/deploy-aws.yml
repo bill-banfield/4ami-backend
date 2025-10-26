@@ -149,6 +149,13 @@ jobs:
           aws rds delete-db-subnet-group --db-subnet-group-name ami-backend-db-subnet-group
         fi
         
+        # Delete any remaining Target Groups
+        TARGET_GROUPS=$(aws elbv2 describe-target-groups --query 'TargetGroups[?contains(TargetGroupName, `ami-backend`)].TargetGroupArn' --output text)
+        for tg in $TARGET_GROUPS; do
+          echo "Deleting orphaned target group: $tg"
+          aws elbv2 delete-target-group --target-group-arn $tg || echo "Target group $tg could not be deleted (may be in use)"
+        done
+        
         echo "✅ Cleanup completed"
       timeout-minutes: 10
 
