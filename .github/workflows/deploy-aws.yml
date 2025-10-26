@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: 4ami-repo
+  ECR_REPOSITORY: 4ami-repo-backend
   ECS_SERVICE: 4ami-service
   ECS_CLUSTER: 4ami-cluster
   ECS_TASK_DEFINITION: 4ami-task
