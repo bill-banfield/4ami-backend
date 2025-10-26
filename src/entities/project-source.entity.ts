@@ -17,7 +17,7 @@ export class ProjectSource {
   @Column({ unique: true })
   projectId: string;
 
-  @OneToOne(() => Project, (project) => project.source)
+  @OneToOne(() => Project, project => project.source)
   @JoinColumn({ name: 'projectId' })
   project: Project;
 

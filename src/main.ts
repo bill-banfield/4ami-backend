@@ -41,7 +41,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
 
@@ -61,9 +61,13 @@ async function bootstrap() {
 
   const port = configService.get('PORT', 3000);
   await app.listen(port);
-  
-  console.log(`🚀 4AMI Backend is running on: http://localhost:${port}/${apiPrefix}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/${apiPrefix}/docs`);
+
+  console.log(
+    `🚀 4AMI Backend is running on: http://localhost:${port}/${apiPrefix}`,
+  );
+  console.log(
+    `📚 API Documentation: http://localhost:${port}/${apiPrefix}/docs`,
+  );
 }
 
 bootstrap();

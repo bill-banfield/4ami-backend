@@ -12,14 +12,16 @@ export class EmailProcessor {
   constructor(private emailProviderFactory: EmailProviderFactory) {}
 
   @Process('send-email')
-  async handleSendEmail(job: Job<{
-    to: string;
-    subject: string;
-    text: string;
-    html?: string;
-    cc?: string[];
-    bcc?: string[];
-  }>) {
+  async handleSendEmail(
+    job: Job<{
+      to: string;
+      subject: string;
+      text: string;
+      html?: string;
+      cc?: string[];
+      bcc?: string[];
+    }>,
+  ) {
     const { to, subject, text, html, cc, bcc } = job.data;
 
     try {
@@ -54,20 +56,23 @@ export class EmailProcessor {
   }
 
   @Process('send-invitation')
-  async handleSendInvitation(job: Job<{
-    firstName: string;
-    lastName: string;
-    company: string;
-    email: string;
-    role: string;
-    source: string;
-    invitationCode: string;
-  }>) {
-    const { firstName, lastName, company, email, role, invitationCode } = job.data;
+  async handleSendInvitation(
+    job: Job<{
+      firstName: string;
+      lastName: string;
+      company: string;
+      email: string;
+      role: string;
+      source: string;
+      invitationCode: string;
+    }>,
+  ) {
+    const { firstName, lastName, company, email, role, invitationCode } =
+      job.data;
 
     try {
       const invitationUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/customer-signup?token=${invitationCode}&role=${role}`;
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Welcome to 4AMI Platform</h2>
@@ -103,15 +108,17 @@ export class EmailProcessor {
   }
 
   @Process('send-password-reset')
-  async handleSendPasswordReset(job: Job<{
-    email: string;
-    resetToken: string;
-  }>) {
+  async handleSendPasswordReset(
+    job: Job<{
+      email: string;
+      resetToken: string;
+    }>,
+  ) {
     const { email, resetToken } = job.data;
 
     try {
       const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Password Reset Request</h2>
@@ -146,15 +153,17 @@ export class EmailProcessor {
   }
 
   @Process('send-email-verification')
-  async handleSendEmailVerification(job: Job<{
-    email: string;
-    verificationToken: string;
-  }>) {
+  async handleSendEmailVerification(
+    job: Job<{
+      email: string;
+      verificationToken: string;
+    }>,
+  ) {
     const { email, verificationToken } = job.data;
 
     try {
       const verificationUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/v1/auth/verify-email/${verificationToken}`;
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Email Verification</h2>
@@ -187,15 +196,18 @@ export class EmailProcessor {
   }
 
   @Process('send-company-registration-notification')
-  async handleSendCompanyRegistrationNotification(job: Job<{
-    company: Company;
-    customerAdmin: User;
-  }>) {
+  async handleSendCompanyRegistrationNotification(
+    job: Job<{
+      company: Company;
+      customerAdmin: User;
+    }>,
+  ) {
     const { company, customerAdmin } = job.data;
 
     try {
       // Get system admin email from environment or use default
-      const systemAdminEmail = process.env.SYSTEM_ADMIN_EMAIL || 'admin@4ami.com';
+      const systemAdminEmail =
+        process.env.SYSTEM_ADMIN_EMAIL || 'admin@4ami.com';
 
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -238,10 +250,14 @@ export class EmailProcessor {
       });
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send company registration notification');
+        throw new Error(
+          result.error || 'Failed to send company registration notification',
+        );
       }
 
-      console.log(`Company registration notification sent successfully to ${systemAdminEmail}`);
+      console.log(
+        `Company registration notification sent successfully to ${systemAdminEmail}`,
+      );
       return { success: true, systemAdminEmail };
     } catch (error) {
       console.error(`Failed to send company registration notification:`, error);
@@ -250,10 +266,12 @@ export class EmailProcessor {
   }
 
   @Process('send-user-credentials')
-  async handleSendUserCredentials(job: Job<{
-    user: User;
-    invitationCode: string;
-  }>) {
+  async handleSendUserCredentials(
+    job: Job<{
+      user: User;
+      invitationCode: string;
+    }>,
+  ) {
     const { user, invitationCode } = job.data;
 
     try {
@@ -289,24 +307,31 @@ export class EmailProcessor {
       });
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send user credentials email');
+        throw new Error(
+          result.error || 'Failed to send user credentials email',
+        );
       }
 
       console.log(`User credentials email sent successfully to ${user.email}`);
       return { success: true, email: user.email };
     } catch (error) {
-      console.error(`Failed to send user credentials email to ${user.email}:`, error);
+      console.error(
+        `Failed to send user credentials email to ${user.email}:`,
+        error,
+      );
       throw error;
     }
   }
 
   @Process('send-project-creation-notification')
-  async handleSendProjectCreationNotification(job: Job<{
-    project: any;
-    creator: User;
-    company: Company;
-    recipients: string[];
-  }>) {
+  async handleSendProjectCreationNotification(
+    job: Job<{
+      project: any;
+      creator: User;
+      company: Company;
+      recipients: string[];
+    }>,
+  ) {
     const { project, creator, company, recipients } = job.data;
 
     try {
@@ -353,7 +378,11 @@ export class EmailProcessor {
       `;
 
       // Generate Excel attachment
-      const excelBuffer = await ProjectExcelGenerator.generateProjectExcel(project, creator, company);
+      const excelBuffer = await ProjectExcelGenerator.generateProjectExcel(
+        project,
+        creator,
+        company,
+      );
       const fileName = `Project_${project.projectNumber}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
       // Send to all recipients
@@ -367,10 +396,11 @@ export class EmailProcessor {
             {
               filename: fileName,
               content: excelBuffer,
-              contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              contentType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             },
           ],
-        })
+        }),
       );
 
       const results = await Promise.all(emailPromises);
@@ -381,7 +411,9 @@ export class EmailProcessor {
         throw new Error(`Failed to send ${failedEmails.length} emails`);
       }
 
-      console.log(`Project creation notifications sent successfully to ${recipients.length} recipients with Excel attachment`);
+      console.log(
+        `Project creation notifications sent successfully to ${recipients.length} recipients with Excel attachment`,
+      );
       return { success: true, recipients, projectId: project.id };
     } catch (error) {
       console.error(`Failed to send project creation notifications:`, error);

@@ -18,14 +18,17 @@ export class ProjectUtilizationScenario {
   @Column()
   projectId: string;
 
-  @ManyToOne(() => Project, (project) => project.utilizationScenarios)
+  @ManyToOne(() => Project, project => project.utilizationScenarios)
   @JoinColumn({ name: 'projectId' })
   project: Project;
 
   @Column({ nullable: true })
   equipmentId: string;
 
-  @ManyToOne(() => ProjectEquipment, (equipment) => equipment.utilizationScenarios)
+  @ManyToOne(
+    () => ProjectEquipment,
+    equipment => equipment.utilizationScenarios,
+  )
   @JoinColumn({ name: 'equipmentId' })
   equipment: ProjectEquipment;
 

@@ -33,7 +33,10 @@ export class ProjectsController {
 
   @Get('types')
   @ApiOperation({ summary: 'Get available project types' })
-  @ApiResponse({ status: 200, description: 'Project types retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Project types retrieved successfully',
+  })
   getProjectTypes() {
     return this.projectsService.getProjectTypes();
   }
@@ -41,7 +44,10 @@ export class ProjectsController {
   @Post()
   @ApiOperation({ summary: 'Create a new project' })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
-  create(@Body() createProjectDto: CreateProjectDto, @CurrentUser() user: User) {
+  create(
+    @Body() createProjectDto: CreateProjectDto,
+    @CurrentUser() user: User,
+  ) {
     return this.projectsService.create(createProjectDto, user.id);
   }
 
@@ -82,12 +88,20 @@ export class ProjectsController {
     @Body() updateProjectDto: UpdateProjectDto,
     @CurrentUser() user: User,
   ) {
-    return this.projectsService.update(id, updateProjectDto, user.id, user.role);
+    return this.projectsService.update(
+      id,
+      updateProjectDto,
+      user.id,
+      user.role,
+    );
   }
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update project status' })
-  @ApiResponse({ status: 200, description: 'Project status updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Project status updated successfully',
+  })
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: ProjectStatus,
@@ -97,8 +111,14 @@ export class ProjectsController {
   }
 
   @Post(':id/submit')
-  @ApiOperation({ summary: 'Submit a draft project (changes status from DRAFT to PENDING and sends notifications)' })
-  @ApiResponse({ status: 200, description: 'Draft project submitted successfully' })
+  @ApiOperation({
+    summary:
+      'Submit a draft project (changes status from DRAFT to PENDING and sends notifications)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Draft project submitted successfully',
+  })
   @ApiResponse({ status: 400, description: 'Project is not in DRAFT status' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   submitDraft(@Param('id') id: string, @CurrentUser() user: User) {

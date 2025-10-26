@@ -49,7 +49,13 @@ export class ReportsController {
     @Query('limit') limit: number = 10,
     @Query('projectId') projectId?: string,
   ) {
-    return this.reportsService.findAll(page, limit, projectId, user.id, user.role);
+    return this.reportsService.findAll(
+      page,
+      limit,
+      projectId,
+      user.id,
+      user.role,
+    );
   }
 
   @Get('dashboard/stats')
@@ -69,7 +75,10 @@ export class ReportsController {
 
   @Get(':id/data')
   @ApiOperation({ summary: 'Get report data' })
-  @ApiResponse({ status: 200, description: 'Report data retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Report data retrieved successfully',
+  })
   getReportData(@Param('id') id: string, @CurrentUser() user: User) {
     return this.reportsService.getReportData(id, user.id, user.role);
   }
@@ -82,11 +91,8 @@ export class ReportsController {
     @CurrentUser() user: User,
     @Res() res: Response,
   ) {
-    const { filePath, fileName, mimeType } = await this.reportsService.downloadReport(
-      id,
-      user.id,
-      user.role,
-    );
+    const { filePath, fileName, mimeType } =
+      await this.reportsService.downloadReport(id, user.id, user.role);
 
     res.setHeader('Content-Type', mimeType);
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);

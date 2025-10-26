@@ -1,5 +1,10 @@
 import { Controller, Post, Body, Get, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 import { AiService } from './ai.service';
 import { ProcessResidualAnalysisDto } from './dto/process-residual-analysis.dto';
@@ -12,8 +17,13 @@ export class AiController {
 
   @Post('residual-analysis')
   @ApiOperation({ summary: 'Process residual analysis using AI' })
-  @ApiResponse({ status: 201, description: 'Residual analysis processing started' })
-  processResidualAnalysis(@Body() processResidualAnalysisDto: ProcessResidualAnalysisDto) {
+  @ApiResponse({
+    status: 201,
+    description: 'Residual analysis processing started',
+  })
+  processResidualAnalysis(
+    @Body() processResidualAnalysisDto: ProcessResidualAnalysisDto,
+  ) {
     return this.aiService.processResidualAnalysis(processResidualAnalysisDto);
   }
 

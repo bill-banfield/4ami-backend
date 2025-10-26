@@ -55,7 +55,7 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'Users retrieved successfully',
-    type: [UserResponseDto]
+    type: [UserResponseDto],
   })
   findAll(
     @Query('page') page: number = 1,
@@ -69,13 +69,15 @@ export class UsersController {
   @Public()
   @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({ summary: 'Test user serialization (no auth required)' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Test user data with password excluded',
-    type: UserResponseDto
+    type: UserResponseDto,
   })
   async testSerialization() {
-    const user = await this.usersService.findOne('116c4018-ed1c-41a0-ad8f-bc05d6448d03');
+    const user = await this.usersService.findOne(
+      '116c4018-ed1c-41a0-ad8f-bc05d6448d03',
+    );
     return { user };
   }
 
@@ -94,7 +96,7 @@ export class UsersController {
   @ApiResponse({
     status: 200,
     description: 'User retrieved successfully',
-    type: UserResponseDto
+    type: UserResponseDto,
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   findOne(@Param('id') id: string, @CurrentUser() user: User) {
@@ -106,7 +108,11 @@ export class UsersController {
   @ApiOperation({ summary: 'Update user' })
   @ApiResponse({ status: 200, description: 'User updated successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @CurrentUser() user: User) {
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser() user: User,
+  ) {
     return this.usersService.update(id, updateUserDto, user);
   }
 
@@ -131,14 +137,20 @@ export class UsersController {
   @Get('verify-token/:token')
   @Public()
   @ApiOperation({ summary: 'Get user by email verification token' })
-  @ApiResponse({ status: 200, description: 'User found', type: UserVerificationResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User found',
+    type: UserVerificationResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserByVerificationToken(@Param('token') token: string): Promise<UserVerificationResponseDto> {
+  async getUserByVerificationToken(
+    @Param('token') token: string,
+  ): Promise<UserVerificationResponseDto> {
     const user = await this.usersService.findByEmailVerificationToken(token);
     if (!user) {
       throw new NotFoundException('Invalid or expired verification token');
     }
-    
+
     // Manually construct response to include emailVerificationToken
     return {
       id: user.id,
@@ -163,14 +175,20 @@ export class UsersController {
   @Get('verify-status/:email')
   @Public()
   @ApiOperation({ summary: 'Get user verification status by email' })
-  @ApiResponse({ status: 200, description: 'User verification status found', type: UserVerificationResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'User verification status found',
+    type: UserVerificationResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserVerificationStatus(@Param('email') email: string): Promise<UserVerificationResponseDto> {
+  async getUserVerificationStatus(
+    @Param('email') email: string,
+  ): Promise<UserVerificationResponseDto> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    
+
     // Manually construct response to include emailVerificationToken
     return {
       id: user.id,

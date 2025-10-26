@@ -53,7 +53,13 @@ export class AssetsController {
     @Query('limit') limit: number = 10,
     @Query('projectId') projectId?: string,
   ) {
-    return this.assetsService.findAll(page, limit, projectId, user.id, user.role);
+    return this.assetsService.findAll(
+      page,
+      limit,
+      projectId,
+      user.id,
+      user.role,
+    );
   }
 
   @Get('dashboard/stats')
@@ -93,7 +99,10 @@ export class AssetsController {
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update asset status' })
-  @ApiResponse({ status: 200, description: 'Asset status updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Asset status updated successfully',
+  })
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: AssetStatus,

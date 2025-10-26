@@ -9,7 +9,12 @@ import {
   UseInterceptors,
   ClassSerializerInterceptor,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
@@ -33,10 +38,10 @@ export class AuthController {
   @Post('signup')
   @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({ summary: 'User registration' })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'User successfully registered',
-    type: AuthResponseDto
+    type: AuthResponseDto,
   })
   @ApiResponse({ status: 409, description: 'User already exists' })
   async signUp(@Body() signUpDto: SignUpDto) {
@@ -47,12 +52,15 @@ export class AuthController {
   @Post('customer-admin-signup')
   @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({ summary: 'Customer signup with invitation code' })
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'Customer successfully registered',
-    type: AuthResponseDto
+    type: AuthResponseDto,
   })
-  @ApiResponse({ status: 400, description: 'Invalid invitation code or validation error' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid invitation code or validation error',
+  })
   @ApiResponse({ status: 409, description: 'User already exists' })
   async customerSignUp(@Body() customerSignupDto: CustomerSignupDto) {
     return this.authService.customerSignUp(customerSignupDto);
@@ -62,15 +70,15 @@ export class AuthController {
   @UseGuards(AuthGuard('local'))
   @Post('signin')
   @ApiOperation({ summary: 'User login' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User successfully logged in',
-    type: SignInResponseDto
+    type: SignInResponseDto,
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async signIn(@Body() signInDto: SignInDto, @Request() req) {
     const result = await this.authService.signIn(req.user);
-    
+
     // Manually construct response following security best practices
     return {
       user: {
@@ -94,15 +102,14 @@ export class AuthController {
     };
   }
 
-
   @Get('profile')
   @UseInterceptors(ClassSerializerInterceptor)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'User profile retrieved',
-    type: UserResponseDto
+    type: UserResponseDto,
   })
   async getProfile(@CurrentUser() user: User) {
     return { user };
@@ -112,16 +119,17 @@ export class AuthController {
   @Post('verify-email')
   @ApiOperation({
     summary: 'Verify email address',
-    description: 'Verify user email with token and email. Both token and email must match an unverified user.'
+    description:
+      'Verify user email with token and email. Both token and email must match an unverified user.',
   })
   @ApiResponse({
     status: 200,
     description: 'Email verified successfully',
-    type: EmailVerificationResponseDto
+    type: EmailVerificationResponseDto,
   })
   @ApiResponse({
     status: 409,
-    description: 'Email and token do not match or user is already verified'
+    description: 'Email and token do not match or user is already verified',
   })
   async verifyEmail(
     @Body('token') token: string,
@@ -147,14 +155,19 @@ export class AuthController {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
         fullName: `${user.firstName} ${user.lastName}`,
-      }
+      },
     };
   }
 
   @Public()
   @Post('clear-verification-token/:token')
-  @ApiOperation({ summary: 'Clear verification token after successful verification' })
-  @ApiResponse({ status: 200, description: 'Verification token cleared successfully' })
+  @ApiOperation({
+    summary: 'Clear verification token after successful verification',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Verification token cleared successfully',
+  })
   @ApiResponse({ status: 400, description: 'Invalid verification token' })
   async clearVerificationToken(@Param('token') token: string) {
     await this.authService.clearVerificationToken(token);

@@ -94,7 +94,11 @@ export class AssetsService {
     };
   }
 
-  async findOne(id: string, userId?: string, userRole?: string): Promise<Asset> {
+  async findOne(
+    id: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<Asset> {
     const queryBuilder = this.assetRepository
       .createQueryBuilder('asset')
       .leftJoinAndSelect('asset.project', 'project')
@@ -175,7 +179,10 @@ export class AssetsService {
     };
   }
 
-  async getDashboardStats(userId?: string, userRole?: string): Promise<{
+  async getDashboardStats(
+    userId?: string,
+    userRole?: string,
+  ): Promise<{
     totalAssets: number;
     activeAssets: number;
     inactiveAssets: number;
@@ -198,10 +205,20 @@ export class AssetsService {
       valueStats,
     ] = await Promise.all([
       queryBuilder.getCount(),
-      queryBuilder.clone().andWhere('asset.status = :status', { status: AssetStatus.ACTIVE }).getCount(),
-      queryBuilder.clone().andWhere('asset.status = :status', { status: AssetStatus.INACTIVE }).getCount(),
-      queryBuilder.clone().andWhere('asset.status = :status', { status: AssetStatus.ARCHIVED }).getCount(),
-      queryBuilder.clone()
+      queryBuilder
+        .clone()
+        .andWhere('asset.status = :status', { status: AssetStatus.ACTIVE })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('asset.status = :status', { status: AssetStatus.INACTIVE })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('asset.status = :status', { status: AssetStatus.ARCHIVED })
+        .getCount(),
+      queryBuilder
+        .clone()
         .select('SUM(asset.value)', 'totalValue')
         .addSelect('SUM(asset.residualValue)', 'totalResidualValue')
         .getRawOne(),
@@ -246,7 +263,12 @@ export class AssetsService {
     const formFields = [
       { name: 'name', type: 'text', required: true },
       { name: 'description', type: 'textarea', required: false },
-      { name: 'type', type: 'select', required: true, options: ['equipment', 'vehicle', 'property', 'other'] },
+      {
+        name: 'type',
+        type: 'select',
+        required: true,
+        options: ['equipment', 'vehicle', 'property', 'other'],
+      },
       { name: 'value', type: 'number', required: true },
       { name: 'residualValue', type: 'number', required: false },
       { name: 'purchaseDate', type: 'date', required: false },

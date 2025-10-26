@@ -39,7 +39,7 @@ import { CommonModule } from './common/common.module';
       useFactory: (configService: ConfigService) => {
         // Support for Railway DATABASE_URL
         const databaseUrl = configService.get('database.url');
-        
+
         if (databaseUrl) {
           return {
             type: 'postgres',
@@ -47,10 +47,13 @@ import { CommonModule } from './common/common.module';
             entities: [__dirname + '/**/*.entity{.ts,.js}'],
             synchronize: true, // Enable for Railway deployment
             logging: configService.get('NODE_ENV') === 'development',
-            ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
+            ssl:
+              configService.get('NODE_ENV') === 'production'
+                ? { rejectUnauthorized: false }
+                : false,
           };
         }
-        
+
         // Fallback to individual connection parameters
         return {
           type: 'postgres',
@@ -62,7 +65,10 @@ import { CommonModule } from './common/common.module';
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           synchronize: true, // Enable for Railway deployment
           logging: configService.get('NODE_ENV') === 'development',
-          ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
+          ssl:
+            configService.get('NODE_ENV') === 'production'
+              ? { rejectUnauthorized: false }
+              : false,
         };
       },
       inject: [ConfigService],
@@ -95,8 +101,8 @@ import { CommonModule } from './common/common.module';
               pass: configService.get('mail.pass'),
             },
             connectionTimeout: 60000, // 60 seconds
-            greetingTimeout: 30000,   // 30 seconds
-            socketTimeout: 60000,     // 60 seconds
+            greetingTimeout: 30000, // 30 seconds
+            socketTimeout: 60000, // 60 seconds
             // Railway-specific settings
             tls: {
               rejectUnauthorized: false, // Allow self-signed certificates

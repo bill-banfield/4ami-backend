@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
-import { IEmailProvider, EmailOptions, EmailResponse } from '../interfaces/email-provider.interface';
+import {
+  IEmailProvider,
+  EmailOptions,
+  EmailResponse,
+} from '../interfaces/email-provider.interface';
 
 @Injectable()
 export class ResendEmailProvider implements IEmailProvider {
@@ -14,11 +18,16 @@ export class ResendEmailProvider implements IEmailProvider {
 
     if (!apiKey) {
       this.logger.warn('Resend API key not found in configuration');
-      throw new Error('Resend API key is required when using Resend email provider');
+      throw new Error(
+        'Resend API key is required when using Resend email provider',
+      );
     }
 
     this.resend = new Resend(apiKey);
-    this.fromEmail = this.configService.get<string>('mail.from', 'noreply@4ami.com');
+    this.fromEmail = this.configService.get<string>(
+      'mail.from',
+      'noreply@4ami.com',
+    );
     this.logger.log('Resend email provider initialized');
   }
 
@@ -29,7 +38,10 @@ export class ResendEmailProvider implements IEmailProvider {
       // Prepare attachments in Resend format
       const attachments = options.attachments?.map(att => ({
         filename: att.filename,
-        content: att.content instanceof Buffer ? att.content : Buffer.from(att.content),
+        content:
+          att.content instanceof Buffer
+            ? att.content
+            : Buffer.from(att.content),
       }));
 
       const { data, error } = await this.resend.emails.send({
@@ -51,7 +63,9 @@ export class ResendEmailProvider implements IEmailProvider {
         };
       }
 
-      this.logger.log(`Email sent successfully via Resend. Message ID: ${data.id}`);
+      this.logger.log(
+        `Email sent successfully via Resend. Message ID: ${data.id}`,
+      );
       return {
         success: true,
         messageId: data.id,

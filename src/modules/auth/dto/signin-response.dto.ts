@@ -23,7 +23,10 @@ export class SignInUserDto {
   @ApiProperty({ description: 'User company', required: false })
   company?: string;
 
-  @ApiProperty({ description: 'User source/registration method', required: false })
+  @ApiProperty({
+    description: 'User source/registration method',
+    required: false,
+  })
   source?: string;
 
   @ApiProperty({ description: 'User role', enum: UserRole })

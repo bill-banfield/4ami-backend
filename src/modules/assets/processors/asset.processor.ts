@@ -18,23 +18,31 @@ export class AssetProcessor {
   ) {}
 
   @Process('bulk-import')
-  async handleBulkImport(job: Job<{
-    filePath: string;
-    projectId?: string;
-    userId: string;
-    skipDuplicates?: boolean;
-    updateExisting?: boolean;
-  }>) {
-    const { filePath, projectId, userId, skipDuplicates = true, updateExisting = false } = job.data;
-    
+  async handleBulkImport(
+    job: Job<{
+      filePath: string;
+      projectId?: string;
+      userId: string;
+      skipDuplicates?: boolean;
+      updateExisting?: boolean;
+    }>,
+  ) {
+    const {
+      filePath,
+      projectId,
+      userId,
+      skipDuplicates = true,
+      updateExisting = false,
+    } = job.data;
+
     try {
       const assets: any[] = [];
-      
+
       // Read and parse CSV file
       await new Promise((resolve, reject) => {
         fs.createReadStream(filePath)
           .pipe(csv())
-          .on('data', (row) => assets.push(row))
+          .on('data', row => assets.push(row))
           .on('end', resolve)
           .on('error', reject);
       });
@@ -62,9 +70,15 @@ export class AssetProcessor {
               Object.assign(existingAsset, {
                 description: assetData.description,
                 value: parseFloat(assetData.value) || existingAsset.value,
-                residualValue: parseFloat(assetData.residualValue) || existingAsset.residualValue,
-                properties: assetData.properties ? JSON.parse(assetData.properties) : existingAsset.properties,
-                metadata: assetData.metadata ? JSON.parse(assetData.metadata) : existingAsset.metadata,
+                residualValue:
+                  parseFloat(assetData.residualValue) ||
+                  existingAsset.residualValue,
+                properties: assetData.properties
+                  ? JSON.parse(assetData.properties)
+                  : existingAsset.properties,
+                metadata: assetData.metadata
+                  ? JSON.parse(assetData.metadata)
+                  : existingAsset.metadata,
               });
               await this.assetRepository.save(existingAsset);
               processed++;
@@ -80,7 +94,9 @@ export class AssetProcessor {
             value: parseFloat(assetData.value) || 0,
             residualValue: parseFloat(assetData.residualValue) || 0,
             status: AssetStatus.ACTIVE,
-            properties: assetData.properties ? JSON.parse(assetData.properties) : {},
+            properties: assetData.properties
+              ? JSON.parse(assetData.properties)
+              : {},
             metadata: assetData.metadata ? JSON.parse(assetData.metadata) : {},
             projectId,
             createdById: userId,

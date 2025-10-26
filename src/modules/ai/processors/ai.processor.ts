@@ -9,14 +9,21 @@ export class AiProcessor {
   constructor(private configService: ConfigService) {}
 
   @Process('process-residual-analysis')
-  async handleResidualAnalysis(job: Job<{
-    assetId: string;
-    formData: Record<string, any>;
-    projectId?: string;
-    analysisType?: string;
-  }>) {
-    const { assetId, formData, projectId, analysisType = 'residual_value_analysis' } = job.data;
-    
+  async handleResidualAnalysis(
+    job: Job<{
+      assetId: string;
+      formData: Record<string, any>;
+      projectId?: string;
+      analysisType?: string;
+    }>,
+  ) {
+    const {
+      assetId,
+      formData,
+      projectId,
+      analysisType = 'residual_value_analysis',
+    } = job.data;
+
     try {
       // Simulate AI processing delay
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -47,7 +54,7 @@ export class AiProcessor {
       };
     } catch (error) {
       console.error('AI residual analysis error:', error);
-      
+
       // Fallback to mock analysis on error
       return {
         assetId,
@@ -63,7 +70,7 @@ export class AiProcessor {
   @Process('analyze-asset-data')
   async handleAssetDataAnalysis(job: Job<{ assetData: any }>) {
     const { assetData } = job.data;
-    
+
     try {
       // Simulate AI processing delay
       await new Promise(resolve => setTimeout(resolve, 1500));
@@ -71,7 +78,8 @@ export class AiProcessor {
       const analysisResult = {
         riskAssessment: this.analyzeRisk(assetData),
         valueTrend: this.analyzeValueTrend(assetData),
-        maintenanceRecommendations: this.generateMaintenanceRecommendations(assetData),
+        maintenanceRecommendations:
+          this.generateMaintenanceRecommendations(assetData),
         depreciationAnalysis: this.analyzeDepreciation(assetData),
       };
 
@@ -89,7 +97,7 @@ export class AiProcessor {
   @Process('generate-insights')
   async handleGenerateInsights(job: Job<{ projectId: string; data: any }>) {
     const { projectId, data } = job.data;
-    
+
     try {
       // Simulate AI processing delay
       await new Promise(resolve => setTimeout(resolve, 3000));
@@ -112,7 +120,11 @@ export class AiProcessor {
     }
   }
 
-  private async callAiService(_apiUrl: string, _apiKey: string, data: any): Promise<any> {
+  private async callAiService(
+    _apiUrl: string,
+    _apiKey: string,
+    data: any,
+  ): Promise<any> {
     // This would be the actual AI service call
     // For now, return mock data
     return this.mockResidualAnalysis(data.data);
@@ -126,7 +138,7 @@ export class AiProcessor {
 
     // Simple mock calculation based on form data
     let depreciationRate = 0.1; // Base 10% per year
-    
+
     if (condition === 'excellent') depreciationRate *= 0.7;
     else if (condition === 'good') depreciationRate *= 0.9;
     else if (condition === 'fair') depreciationRate *= 1.2;
@@ -136,8 +148,9 @@ export class AiProcessor {
     else if (usage === 'moderate') depreciationRate *= 1.0;
     else if (usage === 'heavy') depreciationRate *= 1.3;
 
-    const calculatedResidualValue = originalValue * Math.pow(1 - depreciationRate, age);
-    const confidence = Math.max(0.6, 1 - (age * 0.05)); // Confidence decreases with age
+    const calculatedResidualValue =
+      originalValue * Math.pow(1 - depreciationRate, age);
+    const confidence = Math.max(0.6, 1 - age * 0.05); // Confidence decreases with age
 
     return {
       calculatedResidualValue: Math.round(calculatedResidualValue),

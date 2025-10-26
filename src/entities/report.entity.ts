@@ -47,7 +47,7 @@ export class Report {
   @Column({ nullable: true })
   projectId: string;
 
-  @ManyToOne(() => Project, (project) => project.reports)
+  @ManyToOne(() => Project, project => project.reports)
   @JoinColumn({ name: 'projectId' })
   project: Project;
 

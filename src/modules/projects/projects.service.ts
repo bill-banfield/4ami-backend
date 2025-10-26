@@ -49,7 +49,10 @@ export class ProjectsService {
     private emailService: EmailService,
   ) {}
 
-  async create(createProjectDto: CreateProjectDto, userId: string): Promise<Project> {
+  async create(
+    createProjectDto: CreateProjectDto,
+    userId: string,
+  ): Promise<Project> {
     // Verify user exists and get companyId
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -73,7 +76,9 @@ export class ProjectsService {
       if (createProjectDto.status === ProjectStatus.DRAFT) {
         projectStatus = ProjectStatus.DRAFT;
       } else {
-        throw new BadRequestException('Only DRAFT status or no status (for immediate submission) is allowed during project creation');
+        throw new BadRequestException(
+          'Only DRAFT status or no status (for immediate submission) is allowed during project creation',
+        );
       }
     } else {
       // No status provided = immediate submission = PENDING
@@ -84,7 +89,8 @@ export class ProjectsService {
     const projectNumber = await this.generateProjectNumber();
 
     // Determine submitDate
-    const submitDate = projectStatus === ProjectStatus.PENDING ? new Date() : null;
+    const submitDate =
+      projectStatus === ProjectStatus.PENDING ? new Date() : null;
 
     // Create base project
     const project = this.projectRepository.create({
@@ -137,7 +143,7 @@ export class ProjectsService {
     }
 
     if (createProjectDto.equipments && createProjectDto.equipments.length > 0) {
-      const equipments = createProjectDto.equipments.map((eq) =>
+      const equipments = createProjectDto.equipments.map(eq =>
         this.projectEquipmentRepository.create({
           ...eq,
           projectId: savedProject.id,
@@ -146,8 +152,11 @@ export class ProjectsService {
       await this.projectEquipmentRepository.save(equipments);
     }
 
-    if (createProjectDto.utilizationScenarios && createProjectDto.utilizationScenarios.length > 0) {
-      const scenarios = createProjectDto.utilizationScenarios.map((scenario) =>
+    if (
+      createProjectDto.utilizationScenarios &&
+      createProjectDto.utilizationScenarios.length > 0
+    ) {
+      const scenarios = createProjectDto.utilizationScenarios.map(scenario =>
         this.projectUtilizationScenarioRepository.create({
           ...scenario,
           projectId: savedProject.id,
@@ -161,7 +170,7 @@ export class ProjectsService {
 
     // Send email notifications ONLY if project status is PENDING (i.e., submitted immediately)
     if (projectStatus === ProjectStatus.PENDING) {
-      this.sendProjectCreationNotifications(fullProject, user).catch((error) => {
+      this.sendProjectCreationNotifications(fullProject, user).catch(error => {
         console.error('Failed to send project creation notifications:', error);
         // Don't fail the project creation if email fails
       });
@@ -170,7 +179,10 @@ export class ProjectsService {
     return fullProject;
   }
 
-  private async sendProjectCreationNotifications(project: Project, creator: User): Promise<void> {
+  private async sendProjectCreationNotifications(
+    project: Project,
+    creator: User,
+  ): Promise<void> {
     try {
       // Get company details
       const company = await this.companyRepository.findOne({
@@ -193,7 +205,7 @@ export class ProjectsService {
         },
       });
 
-      const systemAdminEmails = systemAdmins.map((admin) => admin.email);
+      const systemAdminEmails = systemAdmins.map(admin => admin.email);
       recipients.push(...systemAdminEmails);
 
       // 2. Get all CUSTOMER_ADMIN users from the same company
@@ -205,7 +217,7 @@ export class ProjectsService {
         },
       });
 
-      const companyAdminEmails = companyAdmins.map((admin) => admin.email);
+      const companyAdminEmails = companyAdmins.map(admin => admin.email);
       recipients.push(...companyAdminEmails);
 
       // Remove duplicates
@@ -224,7 +236,9 @@ export class ProjectsService {
         uniqueRecipients,
       );
 
-      console.log(`✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins)`);
+      console.log(
+        `✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins)`,
+      );
     } catch (error) {
       console.error('Error in sendProjectCreationNotifications:', error);
       throw error;
@@ -243,7 +257,9 @@ export class ProjectsService {
         // This prevents duplicates even if projects are deleted
         const latestProject = await this.projectRepository
           .createQueryBuilder('project')
-          .where('project.projectNumber LIKE :yearPattern', { yearPattern: `${year}%` })
+          .where('project.projectNumber LIKE :yearPattern', {
+            yearPattern: `${year}%`,
+          })
           .orderBy('project.projectNumber', 'DESC')
           .limit(1)
           .getOne();
@@ -253,7 +269,10 @@ export class ProjectsService {
         if (latestProject && latestProject.projectNumber) {
           // Extract the sequence number from the latest project number
           // Format: YYYYSSSS (e.g., 20250001)
-          const lastSequence = parseInt(latestProject.projectNumber.substring(4), 10);
+          const lastSequence = parseInt(
+            latestProject.projectNumber.substring(4),
+            10,
+          );
           if (!isNaN(lastSequence)) {
             sequence = lastSequence + 1;
           }
@@ -307,16 +326,18 @@ export class ProjectsService {
     if (userRole === UserRole.ADMIN) {
       // System Admin: See all projects EXCEPT DRAFT
       queryBuilder.where('project.status != :draftStatus', {
-        draftStatus: ProjectStatus.DRAFT
+        draftStatus: ProjectStatus.DRAFT,
       });
     } else if (userRole === UserRole.CUSTOMER_ADMIN && userId) {
       // Customer Admin: See all projects from their company EXCEPT DRAFT
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (user && user.companyId) {
         queryBuilder
-          .where('project.companyId = :companyId', { companyId: user.companyId })
+          .where('project.companyId = :companyId', {
+            companyId: user.companyId,
+          })
           .andWhere('project.status != :draftStatus', {
-            draftStatus: ProjectStatus.DRAFT
+            draftStatus: ProjectStatus.DRAFT,
           });
       }
     } else if (userRole === UserRole.CUSTOMER_USER && userId) {
@@ -324,7 +345,7 @@ export class ProjectsService {
       queryBuilder
         .where('project.createdById = :userId', { userId })
         .andWhere('project.status IN (:...allowedStatuses)', {
-          allowedStatuses: [ProjectStatus.DRAFT, ProjectStatus.PENDING]
+          allowedStatuses: [ProjectStatus.DRAFT, ProjectStatus.PENDING],
         });
     } else if (userId) {
       // Fallback: if role not recognized, show only user's own projects
@@ -340,15 +361,19 @@ export class ProjectsService {
     // Transform the response to include only specific fields for createdBy and company
     const transformedProjects = projects.map(project => ({
       ...project,
-      createdBy: project.createdBy ? {
-        id: project.createdBy.id,
-        firstName: project.createdBy.firstName,
-        lastName: project.createdBy.lastName,
-      } : null,
-      company: project.company ? {
-        id: project.company.id,
-        companyName: project.company.companyName,
-      } : null,
+      createdBy: project.createdBy
+        ? {
+            id: project.createdBy.id,
+            firstName: project.createdBy.firstName,
+            lastName: project.createdBy.lastName,
+          }
+        : null,
+      company: project.company
+        ? {
+            id: project.company.id,
+            companyName: project.company.companyName,
+          }
+        : null,
     }));
 
     return {
@@ -359,7 +384,11 @@ export class ProjectsService {
     };
   }
 
-  async findOne(id: string, userId?: string, userRole?: UserRole): Promise<Project> {
+  async findOne(
+    id: string,
+    userId?: string,
+    userRole?: UserRole,
+  ): Promise<Project> {
     const queryBuilder = this.projectRepository
       .createQueryBuilder('project')
       // Select only specific fields for createdBy
@@ -386,7 +415,9 @@ export class ProjectsService {
     if (userRole !== UserRole.ADMIN && userId) {
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (user && user.companyId) {
-        queryBuilder.andWhere('project.companyId = :companyId', { companyId: user.companyId });
+        queryBuilder.andWhere('project.companyId = :companyId', {
+          companyId: user.companyId,
+        });
       }
     }
 
@@ -414,7 +445,8 @@ export class ProjectsService {
 
     // Track if status is changing from DRAFT to PENDING
     const wasInDraft = project.status === ProjectStatus.DRAFT;
-    const isChangingToPending = updateProjectDto.status === ProjectStatus.PENDING;
+    const isChangingToPending =
+      updateProjectDto.status === ProjectStatus.PENDING;
 
     Object.assign(project, updateProjectDto);
 
@@ -437,7 +469,10 @@ export class ProjectsService {
     await this.projectRepository.remove(project);
   }
 
-  async getDashboardStats(userId?: string, userRole?: UserRole): Promise<{
+  async getDashboardStats(
+    userId?: string,
+    userRole?: UserRole,
+  ): Promise<{
     totalProjects: number;
     pendingProjects: number;
     inProgressProjects: number;
@@ -459,10 +494,28 @@ export class ProjectsService {
       cancelledProjects,
     ] = await Promise.all([
       queryBuilder.getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.PENDING }).getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.IN_PROGRESS }).getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.COMPLETED }).getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.CANCELLED }).getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', { status: ProjectStatus.PENDING })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', {
+          status: ProjectStatus.IN_PROGRESS,
+        })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', {
+          status: ProjectStatus.COMPLETED,
+        })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', {
+          status: ProjectStatus.CANCELLED,
+        })
+        .getCount(),
     ]);
 
     return {
@@ -505,7 +558,9 @@ export class ProjectsService {
 
     // Validate that project is in DRAFT status
     if (project.status !== ProjectStatus.DRAFT) {
-      throw new BadRequestException(`Cannot submit project. Project is already in ${project.status} status. Only DRAFT projects can be submitted.`);
+      throw new BadRequestException(
+        `Cannot submit project. Project is already in ${project.status} status. Only DRAFT projects can be submitted.`,
+      );
     }
 
     // Change status to PENDING and set submitDate
@@ -519,10 +574,15 @@ export class ProjectsService {
 
     // Send email notifications when draft is submitted
     if (user) {
-      this.sendProjectCreationNotifications(updatedProject, user).catch((error) => {
-        console.error('Failed to send project submission notifications:', error);
-        // Don't fail the submission if email fails
-      });
+      this.sendProjectCreationNotifications(updatedProject, user).catch(
+        error => {
+          console.error(
+            'Failed to send project submission notifications:',
+            error,
+          );
+          // Don't fail the submission if email fails
+        },
+      );
     }
 
     return updatedProject;

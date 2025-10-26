@@ -22,7 +22,7 @@ export class CreateUtilizationScenarioDto {
   @IsNumber()
   proposedUtilization?: number;
 
-  @ApiProperty({ required: false, example: 125.50 })
+  @ApiProperty({ required: false, example: 125.5 })
   @IsOptional()
   @IsNumber()
   unitPrice?: number;

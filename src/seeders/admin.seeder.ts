@@ -8,7 +8,7 @@ export class AdminSeeder {
     // Check if admin already exists using raw SQL
     const existingAdmin = await this.dataSource.query(
       'SELECT id FROM users WHERE email = $1',
-      ['admin@4ami.com']
+      ['admin@4ami.com'],
     );
 
     if (existingAdmin.length > 0) {
@@ -20,7 +20,8 @@ export class AdminSeeder {
     const hashedPassword = await bcrypt.hash('Admin@123456', 12);
 
     // Create admin user using raw SQL to bypass @BeforeInsert hook
-    await this.dataSource.query(`
+    await this.dataSource.query(
+      `
       INSERT INTO users (
         id, email, password, "firstName", "lastName", phone, role, 
         "isActive", "isEmailVerified", "emailVerificationToken", 
@@ -28,17 +29,19 @@ export class AdminSeeder {
       ) VALUES (
         gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()
       )
-    `, [
-      'admin@4ami.com',
-      hashedPassword,
-      'System',
-      'Administrator',
-      '+1234567890',
-      'ADMIN',
-      true,
-      true,
-      null
-    ]);
+    `,
+      [
+        'admin@4ami.com',
+        hashedPassword,
+        'System',
+        'Administrator',
+        '+1234567890',
+        'ADMIN',
+        true,
+        true,
+        null,
+      ],
+    );
 
     console.log('✅ Admin user created successfully');
     console.log('📧 Email: admin@4ami.com');
@@ -48,7 +51,7 @@ export class AdminSeeder {
   async clear(): Promise<void> {
     const result = await this.dataSource.query(
       'DELETE FROM users WHERE email = $1',
-      ['admin@4ami.com']
+      ['admin@4ami.com'],
     );
 
     if (result[1] > 0) {

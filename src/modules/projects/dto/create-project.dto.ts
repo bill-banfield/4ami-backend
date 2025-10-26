@@ -26,7 +26,10 @@ export class CreateProjectDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'A comprehensive asset management project', required: false })
+  @ApiProperty({
+    example: 'A comprehensive asset management project',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -45,13 +48,17 @@ export class CreateProjectDto {
     example: ProjectStatus.DRAFT,
     enum: ProjectStatus,
     required: false,
-    description: 'Project status. If not provided, defaults to PENDING (submitted). Provide "draft" to save as draft without sending notifications.'
+    description:
+      'Project status. If not provided, defaults to PENDING (submitted). Provide "draft" to save as draft without sending notifications.',
   })
   @IsOptional()
   @IsEnum(ProjectStatus)
   status?: ProjectStatus;
 
-  @ApiProperty({ example: { priority: 'high', category: 'infrastructure' }, required: false })
+  @ApiProperty({
+    example: { priority: 'high', category: 'infrastructure' },
+    required: false,
+  })
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;

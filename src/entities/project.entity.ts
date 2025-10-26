@@ -65,14 +65,14 @@ export class Project {
   @Column({ nullable: true })
   projectTypeId: string;
 
-  @ManyToOne(() => ProjectType, (type) => type.projects)
+  @ManyToOne(() => ProjectType, type => type.projects)
   @JoinColumn({ name: 'projectTypeId' })
   projectType: ProjectType;
 
   @Column({ nullable: true })
   createdById: string;
 
-  @ManyToOne(() => User, (user) => user.projects)
+  @ManyToOne(() => User, user => user.projects)
   @JoinColumn({ name: 'createdById' })
   createdBy: User;
 
@@ -83,28 +83,36 @@ export class Project {
   updatedAt: Date;
 
   // New Relations for Residual Analysis
-  @OneToOne(() => ProjectClient, (client) => client.project, { cascade: true })
+  @OneToOne(() => ProjectClient, client => client.project, { cascade: true })
   client: ProjectClient;
 
-  @OneToOne(() => ProjectSource, (source) => source.project, { cascade: true })
+  @OneToOne(() => ProjectSource, source => source.project, { cascade: true })
   source: ProjectSource;
 
-  @OneToOne(() => ProjectFinancial, (financial) => financial.project, { cascade: true })
+  @OneToOne(() => ProjectFinancial, financial => financial.project, {
+    cascade: true,
+  })
   financial: ProjectFinancial;
 
-  @OneToOne(() => ProjectTransaction, (transaction) => transaction.project, { cascade: true })
+  @OneToOne(() => ProjectTransaction, transaction => transaction.project, {
+    cascade: true,
+  })
   transaction: ProjectTransaction;
 
-  @OneToMany(() => ProjectEquipment, (equipment) => equipment.project, { cascade: true })
+  @OneToMany(() => ProjectEquipment, equipment => equipment.project, {
+    cascade: true,
+  })
   equipments: ProjectEquipment[];
 
-  @OneToMany(() => ProjectUtilizationScenario, (scenario) => scenario.project, { cascade: true })
+  @OneToMany(() => ProjectUtilizationScenario, scenario => scenario.project, {
+    cascade: true,
+  })
   utilizationScenarios: ProjectUtilizationScenario[];
 
   // Old Relations
-  @OneToMany(() => Asset, (asset) => asset.project)
+  @OneToMany(() => Asset, asset => asset.project)
   assets: Asset[];
 
-  @OneToMany(() => Report, (report) => report.project)
+  @OneToMany(() => Report, report => report.project)
   reports: Report[];
 }
