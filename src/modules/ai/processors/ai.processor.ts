@@ -197,7 +197,7 @@ export class AiProcessor {
     };
   }
 
-  private generateRiskInsights(data: any): any {
+  private generateRiskInsights(_data: any): any {
     return {
       overallRisk: 'Medium',
       keyRisks: ['Market volatility', 'Asset aging'],
@@ -205,15 +205,15 @@ export class AiProcessor {
     };
   }
 
-  private generateCostInsights(data: any): any {
+  private generateCostInsights(_data: any): any {
     return {
-      totalCost: data.totalValue || 0,
+      totalCost: _data.totalValue || 0,
       optimization: 'Consider bulk purchasing',
       savings: 'Potential 10% savings',
     };
   }
 
-  private generatePerformanceInsights(data: any): any {
+  private generatePerformanceInsights(_data: any): any {
     return {
       utilization: '75%',
       efficiency: 'Good',

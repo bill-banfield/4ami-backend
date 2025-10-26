@@ -234,7 +234,7 @@ export class AssetsService {
     return this.assetRepository.save(asset);
   }
 
-  async generateAssetForm(projectId?: string): Promise<{
+  async generateAssetForm(_projectId?: string): Promise<{
     formFields: Array<{
       name: string;
       type: string;
