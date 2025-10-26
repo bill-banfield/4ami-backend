@@ -113,18 +113,34 @@ jobs:
           aws iam delete-role --role-name ami-backend-ecs-task-role
         fi
         
-        # Delete Load Balancer if it exists
+        # Delete Load Balancer resources in correct order
         if aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[].LoadBalancerName' --output text | grep -q "ami-backend-alb"; then
-          echo "Deleting existing Load Balancer..."
+          echo "Deleting existing Load Balancer and dependencies..."
           LB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+          
+          # Delete listeners first
+          LISTENERS=$(aws elbv2 describe-listeners --load-balancer-arn $LB_ARN --query 'Listeners[].ListenerArn' --output text)
+          for listener in $LISTENERS; do
+            echo "Deleting listener: $listener"
+            aws elbv2 delete-listener --listener-arn $listener
+          done
+          
+          # Wait a moment for listeners to be deleted
+          sleep 10
+          
+          # Delete target groups
+          TARGET_GROUPS=$(aws elbv2 describe-target-groups --load-balancer-arn $LB_ARN --query 'TargetGroups[].TargetGroupArn' --output text)
+          for tg in $TARGET_GROUPS; do
+            echo "Deleting target group: $tg"
+            aws elbv2 delete-target-group --target-group-arn $tg
+          done
+          
+          # Wait a moment for target groups to be deleted
+          sleep 10
+          
+          # Finally delete the load balancer
+          echo "Deleting load balancer: $LB_ARN"
           aws elbv2 delete-load-balancer --load-balancer-arn $LB_ARN
-        fi
-        
-        # Delete Target Group if it exists
-        if aws elbv2 describe-target-groups --names ami-backend-tg --query 'TargetGroups[].TargetGroupName' --output text | grep -q "ami-backend-tg"; then
-          echo "Deleting existing Target Group..."
-          TG_ARN=$(aws elbv2 describe-target-groups --names ami-backend-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
-          aws elbv2 delete-target-group --target-group-arn $TG_ARN
         fi
         
         # Delete RDS DB Subnet Group if it exists
