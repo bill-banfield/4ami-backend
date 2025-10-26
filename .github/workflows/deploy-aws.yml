@@ -68,6 +68,18 @@ jobs:
         echo "✅ AWS connection verified"
       timeout-minutes: 2
 
+    - name: Check for existing resources
+      run: |
+        echo "🔍 Checking for existing resources that might conflict..."
+        echo "Checking VPCs..."
+        aws ec2 describe-vpcs --filters "Name=tag:Name,Values=4ami-backend-vpc" --query 'Vpcs[].VpcId' --output text || echo "No existing VPCs found"
+        echo "Checking RDS instances..."
+        aws rds describe-db-instances --query 'DBInstances[?contains(DBInstanceIdentifier, `4ami-backend`)].DBInstanceIdentifier' --output text || echo "No existing RDS instances found"
+        echo "Checking ECR repositories..."
+        aws ecr describe-repositories --repository-names 4ami-repo-backend --query 'repositories[].repositoryName' --output text || echo "No existing ECR repository found"
+        echo "✅ Resource check completed"
+      timeout-minutes: 3
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
@@ -92,10 +104,11 @@ jobs:
     - name: Terraform Plan
       run: |
         echo "📋 Creating Terraform plan..."
-        terraform plan -out=tfplan -detailed-exitcode
+        echo "🔍 Running terraform plan with verbose output..."
+        terraform plan -out=tfplan -detailed-exitcode -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" -var="skip_final_snapshot=true" -var="deletion_protection=false"
         echo "✅ Terraform plan created successfully"
       working-directory: aws-deployment/terraform
-      timeout-minutes: 10
+      timeout-minutes: 20
 
     - name: Terraform Apply
       run: |
@@ -103,7 +116,7 @@ jobs:
         terraform apply -auto-approve tfplan
         echo "✅ Terraform applied successfully"
       working-directory: aws-deployment/terraform
-      timeout-minutes: 15
+      timeout-minutes: 25
 
   build-and-push:
     name: Build and Push Docker Image
