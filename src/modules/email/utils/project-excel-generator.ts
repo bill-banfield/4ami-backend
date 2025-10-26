@@ -165,7 +165,7 @@ export class ProjectExcelGenerator {
 
   private static addEquipmentTable(sheet: ExcelJS.Worksheet, equipments: any[]) {
     // Temporarily change column layout for table
-    const originalColumns = sheet.columns;
+    const _originalColumns = sheet.columns;
 
     // Add header row
     const headerRow = sheet.addRow([

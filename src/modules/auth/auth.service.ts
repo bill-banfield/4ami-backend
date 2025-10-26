@@ -3,6 +3,7 @@ import {JwtService} from '@nestjs/jwt';
 import {InjectRepository} from '@nestjs/typeorm';
 import {Repository} from 'typeorm';
 import {v4 as uuidv4} from 'uuid';
+import * as bcrypt from 'bcryptjs';
 
 import {User} from '../../entities/user.entity';
 import {UserRole} from '../../common/enums/user-role.enum';
@@ -169,7 +170,6 @@ export class AuthService {
     }
     
     // Validate password using bcrypt directly
-    const bcrypt = require('bcryptjs');
     const isValidPassword = await bcrypt.compare(password, userData.password);
     
     console.log('🔐 Password validation result:', isValidPassword);
@@ -308,7 +308,6 @@ export class AuthService {
   }
 
   private async hashPassword(password: string): Promise<string> {
-    const bcrypt = require('bcryptjs');
     const saltRounds = 10;
     return bcrypt.hash(password, saltRounds);
   }

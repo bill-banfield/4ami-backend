@@ -3,8 +3,6 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 
 import { AiService } from './ai.service';
 import { ProcessResidualAnalysisDto } from './dto/process-residual-analysis.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
 
 @ApiTags('AI')
 @ApiBearerAuth()

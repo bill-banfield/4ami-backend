@@ -63,7 +63,7 @@ export class EmailProcessor {
     source: string;
     invitationCode: string;
   }>) {
-    const { firstName, lastName, company, email, role, source, invitationCode } = job.data;
+    const { firstName, lastName, company, email, role, source: _source, invitationCode } = job.data;
 
     try {
       const invitationUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/customer-signup?token=${invitationCode}&role=${role}`;

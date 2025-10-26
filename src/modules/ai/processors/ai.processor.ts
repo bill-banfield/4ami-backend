@@ -112,7 +112,7 @@ export class AiProcessor {
     }
   }
 
-  private async callAiService(apiUrl: string, apiKey: string, data: any): Promise<any> {
+  private async callAiService(_apiUrl: string, _apiKey: string, data: any): Promise<any> {
     // This would be the actual AI service call
     // For now, return mock data
     return this.mockResidualAnalysis(data.data);
@@ -156,7 +156,7 @@ export class AiProcessor {
     };
   }
 
-  private analyzeRisk(assetData: any): any {
+  private analyzeRisk(_assetData: any): any {
     return {
       level: 'medium',
       factors: ['age', 'condition', 'market_volatility'],
@@ -165,15 +165,15 @@ export class AiProcessor {
     };
   }
 
-  private analyzeValueTrend(assetData: any): any {
+  private analyzeValueTrend(_assetData: any): any {
     return {
       trend: 'stable',
-      projectedValue: assetData.value * 0.8,
+      projectedValue: _assetData.value * 0.8,
       timeframe: '12 months',
     };
   }
 
-  private generateMaintenanceRecommendations(assetData: any): string[] {
+  private generateMaintenanceRecommendations(_assetData: any): string[] {
     return [
       'Schedule regular inspections',
       'Update maintenance records',
@@ -181,11 +181,11 @@ export class AiProcessor {
     ];
   }
 
-  private analyzeDepreciation(assetData: any): any {
+  private analyzeDepreciation(_assetData: any): any {
     return {
       method: 'straight_line',
       annualRate: 0.1,
-      currentValue: assetData.value * 0.9,
+      currentValue: _assetData.value * 0.9,
     };
   }
 
