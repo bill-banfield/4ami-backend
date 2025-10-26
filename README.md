@@ -2,6 +2,8 @@
 
 A comprehensive backend system for the 4AMI platform built with NestJS, PostgreSQL, Redis, and Docker.
 
+🚀 **CI/CD Pipeline Active** - Automated deployment to AWS with comprehensive testing!
+
 ## Features
 
 ### Core Modules
