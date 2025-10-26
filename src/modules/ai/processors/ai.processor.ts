@@ -189,7 +189,7 @@ export class AiProcessor {
     };
   }
 
-  private generatePortfolioInsights(data: any): any {
+  private generatePortfolioInsights(_data: any): any {
     return {
       diversification: 'Good',
       concentration: 'Medium',
