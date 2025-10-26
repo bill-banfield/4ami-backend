@@ -113,8 +113,28 @@ jobs:
           aws iam delete-role --role-name ami-backend-ecs-task-role
         fi
         
+        # Delete Load Balancer if it exists
+        if aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[].LoadBalancerName' --output text | grep -q "ami-backend-alb"; then
+          echo "Deleting existing Load Balancer..."
+          LB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+          aws elbv2 delete-load-balancer --load-balancer-arn $LB_ARN
+        fi
+        
+        # Delete Target Group if it exists
+        if aws elbv2 describe-target-groups --names ami-backend-tg --query 'TargetGroups[].TargetGroupName' --output text | grep -q "ami-backend-tg"; then
+          echo "Deleting existing Target Group..."
+          TG_ARN=$(aws elbv2 describe-target-groups --names ami-backend-tg --query 'TargetGroups[0].TargetGroupArn' --output text)
+          aws elbv2 delete-target-group --target-group-arn $TG_ARN
+        fi
+        
+        # Delete RDS DB Subnet Group if it exists
+        if aws rds describe-db-subnet-groups --db-subnet-group-name ami-backend-db-subnet-group --query 'DBSubnetGroups[].DBSubnetGroupName' --output text | grep -q "ami-backend-db-subnet-group"; then
+          echo "Deleting existing RDS DB Subnet Group..."
+          aws rds delete-db-subnet-group --db-subnet-group-name ami-backend-db-subnet-group
+        fi
+        
         echo "✅ Cleanup completed"
-      timeout-minutes: 5
+      timeout-minutes: 10
 
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
