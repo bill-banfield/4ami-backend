@@ -100,6 +100,12 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Set platform tag
+      id: platform
+      run: |
+        PLATFORM_TAG=$(echo "${{ matrix.platform }}" | sed 's/\//-/g')
+        echo "tag=$PLATFORM_TAG" >> $GITHUB_OUTPUT
+
     - name: Build image for specific platform
       uses: docker/build-push-action@v5
       with:
@@ -108,9 +114,9 @@ jobs:
         platforms: ${{ matrix.platform }}
         push: false
         load: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.platform }}
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.platform.outputs.tag }}
 
     - name: Test image
       run: |
-        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.platform }} node --version
-        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ matrix.platform }} npm --version
+        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.platform.outputs.tag }} node --version
+        docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.platform.outputs.tag }} npm --version
