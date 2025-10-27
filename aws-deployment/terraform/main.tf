@@ -15,7 +15,7 @@ provider "aws" {
 
 # Local variables for unique resource naming
 locals {
-  unique_name = var.unique_suffix != "" ? "${local.unique_name}-${var.unique_suffix}" : local.unique_name
+  unique_name = var.unique_suffix != "" ? "${var.project_name}-${var.unique_suffix}" : var.project_name
 }
 
 # Data sources
