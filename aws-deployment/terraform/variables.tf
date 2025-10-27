@@ -11,6 +11,12 @@ variable "project_name" {
   default     = "ami-backend"
 }
 
+variable "unique_suffix" {
+  description = "Unique suffix for resource naming to prevent conflicts"
+  type        = string
+  default     = ""
+}
+
 # Database Variables
 variable "db_instance_class" {
   description = "RDS instance class"

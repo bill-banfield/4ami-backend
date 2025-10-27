@@ -50,6 +50,14 @@ jobs:
     environment: production
     
     steps:
+    - name: Generate unique suffix for resources
+      id: unique_suffix_gen
+      run: |
+        UNIQUE_SUFFIX=$(head /dev/urandom | tr -dc a-z0-9 | head -c 8)
+        echo "UNIQUE_SUFFIX=$UNIQUE_SUFFIX" >> $GITHUB_ENV
+        echo "Generated unique suffix: $UNIQUE_SUFFIX"
+      timeout-minutes: 1
+
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -88,35 +96,36 @@ jobs:
     - name: Clean up conflicting resources
       run: |
         echo "🧹 Cleaning up conflicting resources..."
+        echo "Using unique suffix: ${{ env.UNIQUE_SUFFIX }}"
         
         # Delete ECR repository if it exists
-        if aws ecr describe-repositories --repository-names ami-backend-repo >/dev/null 2>&1; then
+        if aws ecr describe-repositories --repository-names ami-backend-${{ env.UNIQUE_SUFFIX }}-repo >/dev/null 2>&1; then
           echo "Deleting existing ECR repository..."
-          aws ecr delete-repository --repository-name ami-backend-repo --force
+          aws ecr delete-repository --repository-name ami-backend-${{ env.UNIQUE_SUFFIX }}-repo --force
         fi
         
         # Delete CloudWatch log group if it exists
-        if aws logs describe-log-groups --log-group-name-prefix "/ecs/ami-backend" --query 'logGroups[].logGroupName' --output text | grep -q "/ecs/ami-backend"; then
+        if aws logs describe-log-groups --log-group-name-prefix "/ecs/ami-backend-${{ env.UNIQUE_SUFFIX }}" --query 'logGroups[].logGroupName' --output text | grep -q "/ecs/ami-backend-${{ env.UNIQUE_SUFFIX }}"; then
           echo "Deleting existing CloudWatch log group..."
-          aws logs delete-log-group --log-group-name "/ecs/ami-backend"
+          aws logs delete-log-group --log-group-name "/ecs/ami-backend-${{ env.UNIQUE_SUFFIX }}"
         fi
         
         # Delete IAM roles if they exist
-        if aws iam get-role --role-name ami-backend-ecs-execution-role >/dev/null 2>&1; then
+        if aws iam get-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-execution-role >/dev/null 2>&1; then
           echo "Deleting existing ECS execution role..."
-          aws iam detach-role-policy --role-name ami-backend-ecs-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-          aws iam delete-role --role-name ami-backend-ecs-execution-role
+          aws iam detach-role-policy --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+          aws iam delete-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-execution-role
         fi
         
-        if aws iam get-role --role-name ami-backend-ecs-task-role >/dev/null 2>&1; then
+        if aws iam get-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-task-role >/dev/null 2>&1; then
           echo "Deleting existing ECS task role..."
-          aws iam delete-role --role-name ami-backend-ecs-task-role
+          aws iam delete-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-task-role
         fi
         
         # Delete Load Balancer resources in correct order
-        if aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[].LoadBalancerName' --output text | grep -q "ami-backend-alb"; then
+        if aws elbv2 describe-load-balancers --names ami-backend-${{ env.UNIQUE_SUFFIX }}-alb --query 'LoadBalancers[].LoadBalancerName' --output text | grep -q "ami-backend-${{ env.UNIQUE_SUFFIX }}-alb"; then
           echo "Deleting existing Load Balancer and dependencies..."
-          LB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+          LB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-${{ env.UNIQUE_SUFFIX }}-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)
           
           # Delete listeners first
           LISTENERS=$(aws elbv2 describe-listeners --load-balancer-arn $LB_ARN --query 'Listeners[].ListenerArn' --output text)
@@ -144,13 +153,13 @@ jobs:
         fi
         
         # Delete RDS DB Subnet Group if it exists
-        if aws rds describe-db-subnet-groups --db-subnet-group-name ami-backend-db-subnet-group --query 'DBSubnetGroups[].DBSubnetGroupName' --output text | grep -q "ami-backend-db-subnet-group"; then
+        if aws rds describe-db-subnet-groups --db-subnet-group-name ami-backend-${{ env.UNIQUE_SUFFIX }}-db-subnet-group --query 'DBSubnetGroups[].DBSubnetGroupName' --output text | grep -q "ami-backend-${{ env.UNIQUE_SUFFIX }}-db-subnet-group"; then
           echo "Deleting existing RDS DB Subnet Group..."
-          aws rds delete-db-subnet-group --db-subnet-group-name ami-backend-db-subnet-group
+          aws rds delete-db-subnet-group --db-subnet-group-name ami-backend-${{ env.UNIQUE_SUFFIX }}-db-subnet-group
         fi
         
         # Delete any remaining Target Groups
-        TARGET_GROUPS=$(aws elbv2 describe-target-groups --query 'TargetGroups[?contains(TargetGroupName, `ami-backend`)].TargetGroupArn' --output text)
+        TARGET_GROUPS=$(aws elbv2 describe-target-groups --query 'TargetGroups[?contains(TargetGroupName, `ami-backend-${{ env.UNIQUE_SUFFIX }}`)].TargetGroupArn' --output text)
         for tg in $TARGET_GROUPS; do
           echo "Deleting orphaned target group: $tg"
           aws elbv2 delete-target-group --target-group-arn $tg || echo "Target group $tg could not be deleted (may be in use)"
@@ -189,6 +198,7 @@ jobs:
           -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
           -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
           -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
+          -var="unique_suffix=${{ env.UNIQUE_SUFFIX }}" \
           -var="skip_final_snapshot=true" \
           -var="deletion_protection=false"
         echo "✅ Terraform plan created successfully"

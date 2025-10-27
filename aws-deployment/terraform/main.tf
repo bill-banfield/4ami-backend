@@ -13,6 +13,11 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Local variables for unique resource naming
+locals {
+  unique_name = var.unique_suffix != "" ? "${local.unique_name}-${var.unique_suffix}" : local.unique_name
+}
+
 # Data sources
 data "aws_availability_zones" "available" {
   state = "available"
@@ -36,7 +41,7 @@ data "aws_subnets" "default" {
 
 # Security Group for RDS
 resource "aws_security_group" "rds" {
-  name_prefix = "${var.project_name}-rds-"
+  name_prefix = "${local.unique_name}-rds-"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -54,13 +59,13 @@ resource "aws_security_group" "rds" {
   }
 
   tags = {
-    Name = "${var.project_name}-rds-sg"
+    Name = "${local.unique_name}-rds-sg"
   }
 }
 
 # Security Group for ECS Tasks
 resource "aws_security_group" "ecs_tasks" {
-  name_prefix = "${var.project_name}-ecs-tasks-"
+  name_prefix = "${local.unique_name}-ecs-tasks-"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -78,13 +83,13 @@ resource "aws_security_group" "ecs_tasks" {
   }
 
   tags = {
-    Name = "${var.project_name}-ecs-tasks-sg"
+    Name = "${local.unique_name}-ecs-tasks-sg"
   }
 }
 
 # Security Group for ALB
 resource "aws_security_group" "alb" {
-  name_prefix = "${var.project_name}-alb-"
+  name_prefix = "${local.unique_name}-alb-"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -109,23 +114,23 @@ resource "aws_security_group" "alb" {
   }
 
   tags = {
-    Name = "${var.project_name}-alb-sg"
+    Name = "${local.unique_name}-alb-sg"
   }
 }
 
 # DB Subnet Group
 resource "aws_db_subnet_group" "main" {
-  name       = "${var.project_name}-db-subnet-group"
+  name       = "${local.unique_name}-db-subnet-group"
   subnet_ids = data.aws_subnets.default.ids
 
   tags = {
-    Name = "${var.project_name}-db-subnet-group"
+    Name = "${local.unique_name}-db-subnet-group"
   }
 }
 
 # RDS PostgreSQL Instance
 resource "aws_db_instance" "main" {
-  identifier = "${var.project_name}-postgres"
+  identifier = "${local.unique_name}-postgres"
 
   engine         = "postgres"
   instance_class = var.db_instance_class
@@ -150,13 +155,13 @@ resource "aws_db_instance" "main" {
   deletion_protection = var.deletion_protection
 
   tags = {
-    Name = "${var.project_name}-postgres"
+    Name = "${local.unique_name}-postgres"
   }
 }
 
 # ECS Cluster
 resource "aws_ecs_cluster" "main" {
-  name = "${var.project_name}-cluster"
+  name = "${local.unique_name}-cluster"
 
   setting {
     name  = "containerInsights"
@@ -164,13 +169,13 @@ resource "aws_ecs_cluster" "main" {
   }
 
   tags = {
-    Name = "${var.project_name}-cluster"
+    Name = "${local.unique_name}-cluster"
   }
 }
 
 # ECS Task Definition
 resource "aws_ecs_task_definition" "main" {
-  family                   = "${var.project_name}-task"
+  family                   = "${local.unique_name}-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = var.task_cpu
@@ -180,8 +185,8 @@ resource "aws_ecs_task_definition" "main" {
 
   container_definitions = jsonencode([
     {
-      name  = "${var.project_name}-container"
-      image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${var.project_name}-repo:latest"
+      name  = "${local.unique_name}-container"
+      image = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${local.unique_name}-repo:latest"
 
       portMappings = [
         {
@@ -277,13 +282,13 @@ resource "aws_ecs_task_definition" "main" {
   ])
 
   tags = {
-    Name = "${var.project_name}-task"
+    Name = "${local.unique_name}-task"
   }
 }
 
 # ECS Service
 resource "aws_ecs_service" "main" {
-  name            = "${var.project_name}-service"
+  name            = "${local.unique_name}-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
   desired_count   = var.desired_count
@@ -297,33 +302,33 @@ resource "aws_ecs_service" "main" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.main.arn
-    container_name   = "${var.project_name}-container"
+    container_name   = "${local.unique_name}-container"
     container_port   = 3000
   }
 
   depends_on = [aws_lb_listener.main]
 
   tags = {
-    Name = "${var.project_name}-service"
+    Name = "${local.unique_name}-service"
   }
 }
 
 # Application Load Balancer
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
+  name               = "${local.unique_name}-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = data.aws_subnets.default.ids
 
   tags = {
-    Name = "${var.project_name}-alb"
+    Name = "${local.unique_name}-alb"
   }
 }
 
 # Target Group
 resource "aws_lb_target_group" "main" {
-  name        = "${var.project_name}-tg"
+  name        = "${local.unique_name}-tg"
   port        = 3000
   protocol    = "HTTP"
   vpc_id      = data.aws_vpc.default.id
@@ -342,7 +347,7 @@ resource "aws_lb_target_group" "main" {
   }
 
   tags = {
-    Name = "${var.project_name}-tg"
+    Name = "${local.unique_name}-tg"
   }
 }
 
@@ -360,7 +365,7 @@ resource "aws_lb_listener" "main" {
 
 # ECR Repository
 resource "aws_ecr_repository" "main" {
-  name                 = "${var.project_name}-repo"
+  name                 = "${local.unique_name}-repo"
   image_tag_mutability = "MUTABLE"
 
   image_scanning_configuration {
@@ -368,23 +373,23 @@ resource "aws_ecr_repository" "main" {
   }
 
   tags = {
-    Name = "${var.project_name}-repo"
+    Name = "${local.unique_name}-repo"
   }
 }
 
 # CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "main" {
-  name              = "/ecs/${var.project_name}"
+  name              = "/ecs/${local.unique_name}"
   retention_in_days = 7
 
   tags = {
-    Name = "${var.project_name}-logs"
+    Name = "${local.unique_name}-logs"
   }
 }
 
 # IAM Role for ECS Execution
 resource "aws_iam_role" "ecs_execution_role" {
-  name = "${var.project_name}-ecs-execution-role"
+  name = "${local.unique_name}-ecs-execution-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -407,7 +412,7 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
 
 # IAM Role for ECS Tasks
 resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.project_name}-ecs-task-role"
+  name = "${local.unique_name}-ecs-task-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
