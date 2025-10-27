@@ -21,13 +21,13 @@ variable "db_instance_class" {
 variable "db_name" {
   description = "Database name"
   type        = string
-  default     = "4ami_db"
+  default     = "ami_db"
 }
 
 variable "db_username" {
   description = "Database username"
   type        = string
-  default     = "4ami_user"
+  default     = "ami_user"
 }
 
 variable "db_password" {
