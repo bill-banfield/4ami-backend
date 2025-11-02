@@ -231,15 +231,24 @@ export class ProjectsService {
         return;
       }
 
-      // Send notification
+      // Fetch project attachments if available
+      const attachments = await this.projectAttachmentRepository.find({
+        where: { projectId: project.id },
+        order: { createdAt: 'ASC' },
+      });
+
+      console.log(`📎 Found ${attachments.length} attachments for project ${project.id}`);
+
+      // Send notification with attachments
       await this.emailService.sendProjectCreationNotification(
         project,
         creator,
         company,
         uniqueRecipients,
+        attachments,
       );
 
-      console.log(`✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins)`);
+      console.log(`✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins) with ${attachments.length} attachment(s)`);
     } catch (error) {
       console.error('Error in sendProjectCreationNotifications:', error);
       throw error;

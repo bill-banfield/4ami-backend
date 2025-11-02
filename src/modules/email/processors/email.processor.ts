@@ -306,11 +306,23 @@ export class EmailProcessor {
     creator: User;
     company: Company;
     recipients: string[];
+    attachments?: any[];
   }>) {
-    const { project, creator, company, recipients } = job.data;
+    const { project, creator, company, recipients, attachments = [] } = job.data;
 
     try {
       const projectUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/projects/${project.id}`;
+
+      // Build attachment info text for email
+      let attachmentInfoHtml = '';
+      if (attachments.length > 0) {
+        attachmentInfoHtml = `
+          <h3>Uploaded Attachments (${attachments.length}):</h3>
+          <ul>
+            ${attachments.map(att => `<li>${att.originalFileName} (${(att.fileSize / 1024).toFixed(2)} KB)</li>`).join('')}
+          </ul>
+        `;
+      }
 
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -340,7 +352,9 @@ export class EmailProcessor {
             <li><strong>Role:</strong> ${creator.role}</li>
           </ul>
 
-          <p>Please find the complete project details in the attached Excel file.</p>
+          ${attachmentInfoHtml}
+
+          <p>Please find the complete project details in the attached Excel file${attachments.length > 0 ? ' along with all uploaded documents' : ''}.</p>
 
           <p>Click the link below to view the project:</p>
           <a href="${projectUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">View Project</a>
@@ -354,7 +368,38 @@ export class EmailProcessor {
 
       // Generate Excel attachment
       const excelBuffer = await ProjectExcelGenerator.generateProjectExcel(project, creator, company);
-      const fileName = `Project_${project.projectNumber}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const excelFileName = `Project_${project.projectNumber}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Prepare email attachments array (Excel + uploaded files)
+      const emailAttachments: any[] = [
+        {
+          filename: excelFileName,
+          content: excelBuffer,
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        },
+      ];
+
+      // Add uploaded file attachments if available
+      const fs = require('fs');
+      const path = require('path');
+
+      for (const attachment of attachments) {
+        try {
+          // Read file from disk
+          const fileBuffer = await fs.promises.readFile(attachment.filePath);
+
+          emailAttachments.push({
+            filename: attachment.originalFileName,
+            content: fileBuffer,
+            contentType: attachment.mimeType,
+          });
+        } catch (fileError) {
+          console.error(`Failed to read attachment file ${attachment.originalFileName}:`, fileError);
+          // Continue with other attachments even if one fails
+        }
+      }
+
+      console.log(`📎 Prepared ${emailAttachments.length} attachments (1 Excel + ${attachments.length} uploaded files)`);
 
       // Send to all recipients
       const provider = this.emailProviderFactory.getProvider();
@@ -363,13 +408,7 @@ export class EmailProcessor {
           to: recipientEmail,
           subject: `New Project Created: ${project.name} (${project.projectNumber})`,
           html,
-          attachments: [
-            {
-              filename: fileName,
-              content: excelBuffer,
-              contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            },
-          ],
+          attachments: emailAttachments,
         })
       );
 
@@ -381,10 +420,10 @@ export class EmailProcessor {
         throw new Error(`Failed to send ${failedEmails.length} emails`);
       }
 
-      console.log(`Project creation notifications sent successfully to ${recipients.length} recipients with Excel attachment`);
-      return { success: true, recipients, projectId: project.id };
+      console.log(`✅ Project creation notifications sent successfully to ${recipients.length} recipients with ${emailAttachments.length} attachment(s)`);
+      return { success: true, recipients, projectId: project.id, attachmentsCount: emailAttachments.length };
     } catch (error) {
-      console.error(`Failed to send project creation notifications:`, error);
+      console.error(`❌ Failed to send project creation notifications:`, error);
       throw error;
     }
   }
