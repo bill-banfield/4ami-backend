@@ -12,8 +12,8 @@ env:
   ECR_REPOSITORY: ami-backend-repo
   ECS_SERVICE: ami-backend-service
   ECS_CLUSTER: ami-backend-cluster
-  ECS_TASK_DEFINITION: 4ami-task
-  CONTAINER_NAME: 4ami-container
+  ECS_TASK_DEFINITION: ami-backend-task
+  CONTAINER_NAME: ami-backend-container
 
 jobs:
   test:
