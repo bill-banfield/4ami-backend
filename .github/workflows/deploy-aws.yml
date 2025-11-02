@@ -218,6 +218,8 @@ jobs:
     needs: [test, deploy-infrastructure]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
 
     steps:
     - name: Checkout code
