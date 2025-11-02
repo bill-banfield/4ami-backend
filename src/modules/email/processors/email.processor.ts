@@ -1,3 +1,4 @@
+
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Injectable } from '@nestjs/common';
@@ -385,21 +386,44 @@ export class EmailProcessor {
 
       for (const attachment of attachments) {
         try {
+          console.log(`📄 Reading attachment: ${attachment.originalFileName} from ${attachment.filePath}`);
+
+          // Check if file exists
+          const fileExists = await fs.promises.access(attachment.filePath, fs.constants.F_OK)
+            .then(() => true)
+            .catch(() => false);
+
+          if (!fileExists) {
+            console.error(`❌ File not found: ${attachment.filePath}`);
+            continue;
+          }
+
           // Read file from disk
           const fileBuffer = await fs.promises.readFile(attachment.filePath);
+          console.log(`✅ Read ${attachment.originalFileName}: ${(fileBuffer.length / 1024).toFixed(2)} KB`);
 
           emailAttachments.push({
             filename: attachment.originalFileName,
             content: fileBuffer,
-            contentType: attachment.mimeType,
+            // Note: contentType is not needed for Resend, it will auto-detect
           });
         } catch (fileError) {
-          console.error(`Failed to read attachment file ${attachment.originalFileName}:`, fileError);
+          console.error(`❌ Failed to read attachment file ${attachment.originalFileName}:`, fileError);
           // Continue with other attachments even if one fails
         }
       }
 
+      // Calculate total email size
+      const totalSize = emailAttachments.reduce((sum, att) => sum + att.content.length, 0);
+      const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+
       console.log(`📎 Prepared ${emailAttachments.length} attachments (1 Excel + ${attachments.length} uploaded files)`);
+      console.log(`📊 Total email size: ${totalSizeMB} MB`);
+
+      // Resend has a 40MB limit
+      if (totalSize > 40 * 1024 * 1024) {
+        console.warn(`⚠️ WARNING: Total email size (${totalSizeMB} MB) exceeds Resend's 40MB limit!`);
+      }
 
       // Send to all recipients
       const provider = this.emailProviderFactory.getProvider();

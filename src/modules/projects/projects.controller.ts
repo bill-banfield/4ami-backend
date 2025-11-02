@@ -17,7 +17,9 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
+import type { Express } from 'express';
 import { createReadStream } from 'fs';
+import { plainToInstance } from 'class-transformer';
 import { multerOptions } from '../../config/file-upload.config';
 import {
   ApiTags,
@@ -58,10 +60,9 @@ export class ProjectsController {
     @UploadedFiles() files: Express.Multer.File[],
     @CurrentUser() user: User,
   ) {
-    // Parse projectData JSON string to DTO
-    const createProjectDto: CreateProjectDto = projectDataString
-      ? JSON.parse(projectDataString)
-      : {};
+    // Parse projectData JSON string to DTO and transform nested objects
+    const parsedData = projectDataString ? JSON.parse(projectDataString) : {};
+    const createProjectDto = plainToInstance(CreateProjectDto, parsedData);
     return this.projectsService.create(createProjectDto, user.id, files);
   }
 
