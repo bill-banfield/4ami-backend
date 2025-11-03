@@ -16,8 +16,13 @@ output "private_subnet_ids" {
 
 # Database Information
 output "rds_endpoint" {
-  description = "RDS instance endpoint"
+  description = "RDS instance endpoint (includes port)"
   value       = aws_db_instance.main.endpoint
+}
+
+output "rds_address" {
+  description = "RDS instance address (hostname only)"
+  value       = aws_db_instance.main.address
 }
 
 output "rds_port" {
@@ -27,7 +32,7 @@ output "rds_port" {
 
 output "database_url" {
   description = "Complete database connection URL"
-  value       = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.main.endpoint}:${aws_db_instance.main.port}/${var.db_name}"
+  value       = "postgresql://${var.db_username}:${var.db_password}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/${var.db_name}"
   sensitive   = true
 }
 
