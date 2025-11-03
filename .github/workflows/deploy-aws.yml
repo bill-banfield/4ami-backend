@@ -306,7 +306,7 @@ jobs:
     - name: Get Load Balancer DNS
       id: get-alb-dns
       run: |
-        ALB_DNS=$(aws elbv2 describe-load-balancers --names 4ami-alb --query 'LoadBalancers[0].DNSName' --output text)
+        ALB_DNS=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].DNSName' --output text)
         echo "alb-dns=$ALB_DNS" >> $GITHUB_OUTPUT
         echo "API URL: https://$ALB_DNS/api/v1"
 
