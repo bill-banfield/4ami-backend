@@ -282,7 +282,9 @@ resource "aws_ecs_task_definition" "main" {
   ])
 
   tags = {
-    Name = "${local.unique_name}-task"
+    Name        = "${local.unique_name}-task"
+    Environment = "production"
+    ManagedBy   = "terraform"
   }
 }
 
