@@ -214,7 +214,7 @@ resource "aws_ecs_task_definition" "main" {
         },
         {
           name  = "DB_HOST"
-          value = aws_db_instance.main.endpoint
+          value = aws_db_instance.main.address
         },
         {
           name  = "DB_PORT"
