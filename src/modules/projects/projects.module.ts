@@ -13,6 +13,7 @@ import { ProjectEquipment } from '../../entities/project-equipment.entity';
 import { ProjectFinancial } from '../../entities/project-financial.entity';
 import { ProjectTransaction } from '../../entities/project-transaction.entity';
 import { ProjectUtilizationScenario } from '../../entities/project-utilization-scenario.entity';
+import { ProjectAttachment } from '../../entities/project-attachment.entity';
 import { EmailModule } from '../email/email.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { EmailModule } from '../email/email.module';
       ProjectFinancial,
       ProjectTransaction,
       ProjectUtilizationScenario,
+      ProjectAttachment,
     ]),
     EmailModule,
   ],
