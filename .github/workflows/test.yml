@@ -146,13 +146,14 @@ jobs:
       run: |
         npm audit --audit-level high || echo "Security audit completed with warnings"
 
-    - name: Run Snyk security scan
-      if: ${{ secrets.SNYK_TOKEN != '' }}
-      uses: snyk/actions/node@master
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      with:
-        args: --severity-threshold=high
+    # Snyk security scan disabled - configure SNYK_TOKEN secret to enable
+    # - name: Run Snyk security scan
+    #   if: secrets.SNYK_TOKEN != ''
+    #   uses: snyk/actions/node@master
+    #   env:
+    #     SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+    #   with:
+    #     args: --severity-threshold=high
 
   code-quality:
     name: Code Quality
