@@ -308,7 +308,7 @@ jobs:
       run: |
         ALB_DNS=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].DNSName' --output text)
         echo "alb-dns=$ALB_DNS" >> $GITHUB_OUTPUT
-        echo "API URL: https://$ALB_DNS/api/v1"
+        echo "API URL: http://$ALB_DNS/api/v1"
 
     - name: Wait for deployment to be ready
       run: |
@@ -326,7 +326,7 @@ jobs:
 
     - name: Run deployment tests
       run: |
-        python aws-deployment/tests/test-backend-deployment.py --url https://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
+        python aws-deployment/tests/test-backend-deployment.py --url http://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
 
     - name: Setup Node.js for additional tests
       uses: actions/setup-node@v4
@@ -335,7 +335,7 @@ jobs:
 
     - name: Run frontend-backend connection tests
       run: |
-        node aws-deployment/tests/test-frontend-backend-connection.js https://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
+        node aws-deployment/tests/test-frontend-backend-connection.js http://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
 
   notify:
     name: Notify Deployment Status
