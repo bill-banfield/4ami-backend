@@ -51,6 +51,13 @@ export class ProjectsController {
     return this.projectsService.getProjectTypes();
   }
 
+  @Get('sources')
+  @ApiOperation({ summary: 'Get all project sources associated with the current user' })
+  @ApiResponse({ status: 200, description: 'Project sources retrieved successfully' })
+  getUserProjectSources(@CurrentUser() user: User) {
+    return this.projectsService.getUserProjectSources(user.id, user.role);
+  }
+
   @Post()
   @UseInterceptors(FilesInterceptor('files', 10, multerOptions))
   @ApiOperation({ summary: 'Create a new project with optional file attachments' })
