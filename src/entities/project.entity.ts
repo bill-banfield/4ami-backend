@@ -21,6 +21,7 @@ import { ProjectTransaction } from './project-transaction.entity';
 import { ProjectUtilizationScenario } from './project-utilization-scenario.entity';
 import { Asset } from './asset.entity';
 import { Report } from './report.entity';
+import { ProjectAttachment } from './project-attachment.entity';
 
 @Entity('projects')
 export class Project {
@@ -107,4 +108,7 @@ export class Project {
 
   @OneToMany(() => Report, (report) => report.project)
   reports: Report[];
+
+  @OneToMany(() => ProjectAttachment, (attachment) => attachment.project, { cascade: true })
+  attachments: ProjectAttachment[];
 }

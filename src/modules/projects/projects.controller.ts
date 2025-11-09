@@ -10,7 +10,17 @@ import {
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
+  UseInterceptors,
+  UploadedFiles,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import type { Express } from 'express';
+import { createReadStream } from 'fs';
+import { plainToInstance } from 'class-transformer';
+import { multerOptions } from '../../config/file-upload.config';
 import {
   ApiTags,
   ApiOperation,
@@ -42,10 +52,18 @@ export class ProjectsController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Create a new project' })
+  @UseInterceptors(FilesInterceptor('files', 10, multerOptions))
+  @ApiOperation({ summary: 'Create a new project with optional file attachments' })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
-  create(@Body() createProjectDto: CreateProjectDto, @CurrentUser() user: User) {
-    return this.projectsService.create(createProjectDto, user.id);
+  create(
+    @Body('projectData') projectDataString: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: User,
+  ) {
+    // Parse projectData JSON string to DTO and transform nested objects
+    const parsedData = projectDataString ? JSON.parse(projectDataString) : {};
+    const createProjectDto = plainToInstance(CreateProjectDto, parsedData);
+    return this.projectsService.create(createProjectDto, user.id, files);
   }
 
   @Get()
@@ -114,5 +132,93 @@ export class ProjectsController {
   @ApiResponse({ status: 404, description: 'Project not found' })
   remove(@Param('id') id: string, @CurrentUser() user: User) {
     return this.projectsService.remove(id, user.id, user.role);
+  }
+
+  // ========== File Attachment Endpoints ==========
+
+  @Post(':projectId/attachments')
+  @UseInterceptors(FilesInterceptor('files', 10, multerOptions))
+  @ApiOperation({ summary: 'Upload attachments to an existing project' })
+  @ApiResponse({ status: 201, description: 'Files uploaded successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  async uploadAttachments(
+    @Param('projectId') projectId: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @CurrentUser() user: User,
+  ) {
+    const attachments = await this.projectsService.uploadAttachments(
+      projectId,
+      files,
+      user.id,
+      user.role,
+    );
+    return {
+      success: true,
+      message: `${attachments.length} file(s) uploaded successfully`,
+      data: attachments,
+    };
+  }
+
+  @Get(':projectId/attachments')
+  @ApiOperation({ summary: 'Get all attachments for a project' })
+  @ApiResponse({ status: 200, description: 'Attachments retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
+  getAttachments(
+    @Param('projectId') projectId: string,
+    @CurrentUser() user: User,
+  ) {
+    return this.projectsService.getProjectAttachments(
+      projectId,
+      user.id,
+      user.role,
+    );
+  }
+
+  @Get(':projectId/attachments/:attachmentId/download')
+  @ApiOperation({ summary: 'Download a project attachment' })
+  @ApiResponse({ status: 200, description: 'File downloaded successfully' })
+  @ApiResponse({ status: 404, description: 'Attachment not found' })
+  async downloadAttachment(
+    @Param('projectId') projectId: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUser() user: User,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const { filePath, fileName, mimeType } =
+      await this.projectsService.getAttachmentForDownload(
+        projectId,
+        attachmentId,
+        user.id,
+        user.role,
+      );
+
+    const file = createReadStream(filePath);
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${fileName}"`,
+    });
+
+    return new StreamableFile(file);
+  }
+
+  @Delete(':projectId/attachments/:attachmentId')
+  @ApiOperation({ summary: 'Delete a project attachment' })
+  @ApiResponse({ status: 200, description: 'Attachment deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Attachment not found' })
+  async deleteAttachment(
+    @Param('projectId') projectId: string,
+    @Param('attachmentId') attachmentId: string,
+    @CurrentUser() user: User,
+  ) {
+    await this.projectsService.deleteAttachment(
+      projectId,
+      attachmentId,
+      user.id,
+      user.role,
+    );
+    return {
+      success: true,
+      message: 'Attachment deleted successfully',
+    };
   }
 }
