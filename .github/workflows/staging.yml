@@ -1,8 +1,8 @@
-name: staging.yml
+name: Staging Deployment
 on:
   push:
     branches:
-      - staging
+      - "staging"
 
 jobs:
   deploy:
