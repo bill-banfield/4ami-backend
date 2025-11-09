@@ -560,6 +560,49 @@ export class ProjectsService {
     });
   }
 
+  /**
+   * Get all ProjectSource entities associated with the current user's projects
+   * Returns only ProjectSource data without associated project details
+   */
+  async getUserProjectSources(
+    userId: string,
+    userRole: UserRole,
+  ): Promise<ProjectSource[]> {
+    const queryBuilder = this.projectSourceRepository
+      .createQueryBuilder('source')
+      .leftJoin('source.project', 'project');
+
+    // Apply role-based filtering based on project relationships
+    if (userRole === UserRole.ADMIN) {
+      // System Admin: See all project sources EXCEPT those from DRAFT projects
+      queryBuilder.where('project.status != :draftStatus', {
+        draftStatus: ProjectStatus.DRAFT,
+      });
+    } else if (userRole === UserRole.CUSTOMER_ADMIN) {
+      // Customer Admin: See all project sources from their company EXCEPT DRAFT
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user && user.companyId) {
+        queryBuilder
+          .where('project.companyId = :companyId', { companyId: user.companyId })
+          .andWhere('project.status != :draftStatus', {
+            draftStatus: ProjectStatus.DRAFT,
+          });
+      }
+    } else if (userRole === UserRole.CUSTOMER_USER) {
+      // Customer User: See only project sources from their own projects
+      queryBuilder.where('project.createdById = :userId', { userId });
+    } else {
+      // Fallback: if role not recognized, show only user's own project sources
+      queryBuilder.where('project.createdById = :userId', { userId });
+    }
+
+    const sources = await queryBuilder
+      .orderBy('source.createdAt', 'DESC')
+      .getMany();
+
+    return sources;
+  }
+
   // ========== File Upload Methods ==========
 
   /**
