@@ -149,6 +149,12 @@ export class UsersService {
     });
   }
 
+  async findByInvitationCode(invitationCode: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { emailVerificationToken: invitationCode },
+    });
+  }
+
   async findByEmailVerificationTokenOrEmail(token: string, email?: string): Promise<User | null> {
     // First try to find by token
     let user = await this.userRepository.findOne({
@@ -237,7 +243,7 @@ export class UsersService {
   }
 
   async inviteUser(inviteUserDto: InviteUserDto, inviterId: string): Promise<User> {
-    const { email, firstName, lastName, role, invitationCode, company: companyName, source } = inviteUserDto;
+    const { email, firstName, lastName, title, role, invitationCode, company: companyName, source } = inviteUserDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
@@ -266,6 +272,7 @@ export class UsersService {
       email,
       firstName,
       lastName,
+      title,
       role: role || UserRole.CUSTOMER_USER,
       companyName,
       source,

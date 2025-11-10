@@ -15,6 +15,11 @@ export class InviteUserDto {
   @IsString()
   lastName: string;
 
+  @ApiProperty({ example: 'Software Engineer', required: false })
+  @IsOptional()
+  @IsString()
+  title?: string;
+
   @ApiProperty({ 
     enum: UserRole, 
     enumName: 'UserRole',
