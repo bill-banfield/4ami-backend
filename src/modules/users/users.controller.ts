@@ -89,6 +89,38 @@ export class UsersController {
     return this.usersService.getDashboardStats();
   }
 
+  @Get('invitation')
+  @Public()
+  @ApiOperation({ summary: 'Get user details by invitation code' })
+  @ApiQuery({ name: 'invitationCode', required: true, type: String })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'User details retrieved successfully', 
+    type: UserInvitationDetailsDto 
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 400, description: 'Invitation code is required' })
+  async getUserByInvitationCode(@Query('invitationCode') invitationCode: string): Promise<UserInvitationDetailsDto> {
+    if (!invitationCode) {
+      throw new NotFoundException('Invitation code is required');
+    }
+    
+    const user = await this.usersService.findByInvitationCode(invitationCode);
+    if (!user) {
+      throw new NotFoundException('User not found with the provided invitation code');
+    }
+    
+    // Return only the specified fields for security
+    return {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      title: user.title,
+      companyName: user.companyName,
+      source: user.source,
+    };
+  }
+
   @Get(':id')
   @UseInterceptors(ClassSerializerInterceptor)
   @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
@@ -191,32 +223,6 @@ export class UsersController {
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
       fullName: `${user.firstName} ${user.lastName}`,
-    };
-  }
-
-  @Get('invitation/:invitationCode')
-  @Public()
-  @ApiOperation({ summary: 'Get user details by invitation code' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User details retrieved successfully', 
-    type: UserInvitationDetailsDto 
-  })
-  @ApiResponse({ status: 404, description: 'User not found' })
-  async getUserByInvitationCode(@Param('invitationCode') invitationCode: string): Promise<UserInvitationDetailsDto> {
-    const user = await this.usersService.findByInvitationCode(invitationCode);
-    if (!user) {
-      throw new NotFoundException('User not found with the provided invitation code');
-    }
-    
-    // Return only the specified fields for security
-    return {
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      title: user.title,
-      companyName: user.companyName,
-      source: user.source,
     };
   }
 
