@@ -178,7 +178,7 @@ export class AuthService {
       console.log('❌ Invalid password');
       return null;
     }
-
+    
     // Create User object manually to avoid any decorator issues
     const user = new User();
     user.id = userData.id;
@@ -188,6 +188,7 @@ export class AuthService {
     user.title = userData.title;
     user.phone = userData.phone;
     user.companyName = userData.companyName;
+    user.companyId = userData.companyId;
     user.source = userData.source;
     user.role = userData.role;
     user.isActive = userData.isActive;

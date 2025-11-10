@@ -81,6 +81,7 @@ export class AuthController {
         title: result.user.title,
         phone: result.user.phone,
         companyName: result.user.companyName,
+        companyId: result.user.companyId,
         source: result.user.source,
         role: result.user.role,
         isActive: result.user.isActive,
