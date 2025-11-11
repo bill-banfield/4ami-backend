@@ -196,23 +196,10 @@ jobs:
       with:
         terraform_version: '1.6.0'
 
-    - name: Clear any stale Terraform locks
-      run: |
-        echo "🔓 Checking for stale Terraform locks..."
-        LOCK_COUNT=$(aws dynamodb scan --table-name ami-backend-terraform-locks --region us-east-1 --select COUNT --output text --query 'Count')
-        if [ "$LOCK_COUNT" -gt 0 ]; then
-          echo "Found $LOCK_COUNT stale lock(s), clearing..."
-          aws dynamodb delete-item --table-name ami-backend-terraform-locks --key '{"LockID":{"S":"ami-backend-terraform-state/terraform.tfstate"}}' --region us-east-1
-          echo "✅ Stale locks cleared"
-        else
-          echo "✅ No stale locks found"
-        fi
-      timeout-minutes: 2
-
     - name: Terraform Init
       run: |
         echo "🚀 Initializing Terraform with S3 backend..."
-        terraform init -upgrade -migrate-state -force-copy
+        terraform init -upgrade -reconfigure
         echo "✅ Terraform initialized successfully with remote state"
       working-directory: aws-deployment/terraform
       timeout-minutes: 5
@@ -285,14 +272,41 @@ jobs:
         echo "📋 Creating Terraform plan..."
         echo "Database creation mode: ${{ env.CREATE_NEW_DB }}"
         echo "Resource suffix: '${{ env.UNIQUE_SUFFIX }}'"
-        terraform plan -out=tfplan -detailed-exitcode \
+
+        # Try terraform plan, if it fails due to lock, force unlock and retry
+        if ! terraform plan -out=tfplan -detailed-exitcode \
           -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
           -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
           -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
           -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
           -var="unique_suffix=${{ env.UNIQUE_SUFFIX }}" \
           -var="skip_final_snapshot=true" \
-          -var="deletion_protection=false"
+          -var="deletion_protection=false" 2>&1 | tee /tmp/plan_output.log; then
+
+          # Check if failure was due to lock
+          if grep -q "Error acquiring the state lock" /tmp/plan_output.log; then
+            echo "⚠️  Lock detected, clearing via DynamoDB and retrying..."
+            aws dynamodb delete-item --table-name ami-backend-terraform-locks \
+              --key '{"LockID":{"S":"ami-backend-terraform-state/terraform.tfstate"}}' \
+              --region us-east-1 || echo "No lock to clear"
+
+            sleep 5
+
+            echo "🔄 Retrying terraform plan..."
+            terraform plan -out=tfplan -detailed-exitcode \
+              -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
+              -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
+              -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
+              -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
+              -var="unique_suffix=${{ env.UNIQUE_SUFFIX }}" \
+              -var="skip_final_snapshot=true" \
+              -var="deletion_protection=false"
+          else
+            echo "❌ Plan failed for non-lock reason"
+            exit 1
+          fi
+        fi
+
         echo "✅ Terraform plan created successfully"
       working-directory: aws-deployment/terraform
       timeout-minutes: 10
