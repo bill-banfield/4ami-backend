@@ -273,18 +273,29 @@ jobs:
         echo "Database creation mode: ${{ env.CREATE_NEW_DB }}"
         echo "Resource suffix: '${{ env.UNIQUE_SUFFIX }}'"
 
-        # Try terraform plan, if it fails due to lock, force unlock and retry
-        if ! terraform plan -out=tfplan -detailed-exitcode \
-          -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
-          -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
-          -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
-          -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
-          -var="unique_suffix=${{ env.UNIQUE_SUFFIX }}" \
-          -var="skip_final_snapshot=true" \
-          -var="deletion_protection=false" 2>&1 | tee /tmp/plan_output.log; then
+        # Function to run terraform plan
+        run_plan() {
+          terraform plan -out=tfplan \
+            -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
+            -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
+            -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
+            -var="unique_suffix=${{ env.UNIQUE_SUFFIX }}" \
+            -var="skip_final_snapshot=true" \
+            -var="deletion_protection=false"
+        }
 
-          # Check if failure was due to lock
-          if grep -q "Error acquiring the state lock" /tmp/plan_output.log; then
+        # Try terraform plan, capture output and exit code
+        set +e
+        OUTPUT=$(run_plan 2>&1)
+        EXIT_CODE=$?
+        set -e
+
+        echo "$OUTPUT"
+
+        # If plan failed, check if it was due to lock
+        if [ $EXIT_CODE -ne 0 ]; then
+          if echo "$OUTPUT" | grep -q "Error acquiring the state lock"; then
             echo "⚠️  Lock detected, clearing via DynamoDB and retrying..."
             aws dynamodb delete-item --table-name ami-backend-terraform-locks \
               --key '{"LockID":{"S":"ami-backend-terraform-state/terraform.tfstate"}}' \
@@ -293,17 +304,10 @@ jobs:
             sleep 5
 
             echo "🔄 Retrying terraform plan..."
-            terraform plan -out=tfplan -detailed-exitcode \
-              -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
-              -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
-              -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
-              -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
-              -var="unique_suffix=${{ env.UNIQUE_SUFFIX }}" \
-              -var="skip_final_snapshot=true" \
-              -var="deletion_protection=false"
+            run_plan
           else
             echo "❌ Plan failed for non-lock reason"
-            exit 1
+            exit $EXIT_CODE
           fi
         fi
 
