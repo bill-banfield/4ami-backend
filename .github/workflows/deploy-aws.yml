@@ -217,6 +217,15 @@ jobs:
       run: |
         echo "📥 Checking and importing existing resources into Terraform state..."
 
+        # Set Terraform variables for import commands
+        export TF_VAR_db_password="${{ secrets.DB_PASSWORD || 'defaultpassword123' }}"
+        export TF_VAR_jwt_secret="${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}"
+        export TF_VAR_mail_user="${{ secrets.MAIL_USER || 'noreply@4ami.com' }}"
+        export TF_VAR_mail_pass="${{ secrets.MAIL_PASS || 'default-mail-password' }}"
+        export TF_VAR_unique_suffix="${{ env.UNIQUE_SUFFIX }}"
+        export TF_VAR_skip_final_snapshot=true
+        export TF_VAR_deletion_protection=false
+
         # Function to import resource if it doesn't exist in state
         import_if_needed() {
           local resource_address=$1
@@ -235,7 +244,7 @@ jobs:
         import_if_needed "aws_ecr_repository.main" "ami-backend-repo" "ECR Repository"
 
         # Import CloudWatch Log Group
-        import_if_needed "aws_cloudwatch_log_group.ecs" "/ecs/ami-backend" "CloudWatch Log Group"
+        import_if_needed "aws_cloudwatch_log_group.main" "/ecs/ami-backend" "CloudWatch Log Group"
 
         # Import IAM Roles
         import_if_needed "aws_iam_role.ecs_execution_role" "ami-backend-ecs-execution-role" "ECS Execution Role"
@@ -265,7 +274,6 @@ jobs:
         echo "✅ Resource import check completed"
       working-directory: aws-deployment/terraform
       timeout-minutes: 10
-      continue-on-error: true
 
     - name: Terraform Plan
       run: |
