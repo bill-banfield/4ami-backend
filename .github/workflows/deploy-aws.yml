@@ -198,9 +198,9 @@ jobs:
 
     - name: Terraform Init
       run: |
-        echo "🚀 Initializing Terraform..."
-        terraform init -upgrade
-        echo "✅ Terraform initialized successfully"
+        echo "🚀 Initializing Terraform with S3 backend..."
+        terraform init -upgrade -migrate-state -force-copy
+        echo "✅ Terraform initialized successfully with remote state"
       working-directory: aws-deployment/terraform
       timeout-minutes: 5
 
@@ -211,6 +211,61 @@ jobs:
         echo "✅ Terraform configuration is valid"
       working-directory: aws-deployment/terraform
       timeout-minutes: 2
+
+    - name: Import existing resources (if not in state)
+      if: env.CREATE_NEW_DB == 'false'
+      run: |
+        echo "📥 Checking and importing existing resources into Terraform state..."
+
+        # Function to import resource if it doesn't exist in state
+        import_if_needed() {
+          local resource_address=$1
+          local resource_id=$2
+          local resource_name=$3
+
+          if ! terraform state show "$resource_address" >/dev/null 2>&1; then
+            echo "Importing $resource_name..."
+            terraform import "$resource_address" "$resource_id" 2>&1 | grep -v "Warning" || echo "⚠️  Import failed or resource doesn't exist: $resource_name"
+          else
+            echo "✓ $resource_name already in state"
+          fi
+        }
+
+        # Import ECR Repository
+        import_if_needed "aws_ecr_repository.main" "ami-backend-repo" "ECR Repository"
+
+        # Import CloudWatch Log Group
+        import_if_needed "aws_cloudwatch_log_group.ecs" "/ecs/ami-backend" "CloudWatch Log Group"
+
+        # Import IAM Roles
+        import_if_needed "aws_iam_role.ecs_execution_role" "ami-backend-ecs-execution-role" "ECS Execution Role"
+        import_if_needed "aws_iam_role.ecs_task_role" "ami-backend-ecs-task-role" "ECS Task Role"
+
+        # Import DB Subnet Group
+        import_if_needed "aws_db_subnet_group.main" "ami-backend-db-subnet-group" "DB Subnet Group"
+
+        # Import RDS Instance
+        import_if_needed "aws_db_instance.main" "ami-backend-postgres" "RDS Instance"
+
+        # Import ECS Cluster
+        import_if_needed "aws_ecs_cluster.main" "ami-backend-cluster" "ECS Cluster"
+
+        # Import Load Balancer
+        ALB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "")
+        if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
+          import_if_needed "aws_lb.main" "$ALB_ARN" "Application Load Balancer"
+        fi
+
+        # Import Target Group
+        TG_ARN=$(aws elbv2 describe-target-groups --names ami-backend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "")
+        if [ -n "$TG_ARN" ] && [ "$TG_ARN" != "None" ]; then
+          import_if_needed "aws_lb_target_group.main" "$TG_ARN" "Target Group"
+        fi
+
+        echo "✅ Resource import check completed"
+      working-directory: aws-deployment/terraform
+      timeout-minutes: 10
+      continue-on-error: true
 
     - name: Terraform Plan
       run: |
