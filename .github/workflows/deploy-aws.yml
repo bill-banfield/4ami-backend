@@ -6,6 +6,15 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      create_new_database:
+        description: 'Create new database instance (WARNING: Creates new RDS instance)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 env:
   AWS_REGION: us-east-1
@@ -14,6 +23,7 @@ env:
   ECS_CLUSTER: ami-backend-cluster
   ECS_TASK_DEFINITION: ami-backend-task
   CONTAINER_NAME: ami-backend-container
+  CREATE_NEW_DB: ${{ github.event.inputs.create_new_database || 'false' }}
 
 jobs:
   test:
@@ -50,12 +60,17 @@ jobs:
     environment: production
     
     steps:
-    - name: Generate unique suffix for resources
-      id: unique_suffix_gen
+    - name: Set resource suffix based on database creation flag
+      id: resource_suffix_setup
       run: |
-        UNIQUE_SUFFIX=$(head /dev/urandom | tr -dc a-z0-9 | head -c 8)
-        echo "UNIQUE_SUFFIX=$UNIQUE_SUFFIX" >> $GITHUB_ENV
-        echo "Generated unique suffix: $UNIQUE_SUFFIX"
+        if [ "${{ env.CREATE_NEW_DB }}" = "true" ]; then
+          UNIQUE_SUFFIX=$(head /dev/urandom | tr -dc a-z0-9 | head -c 8)
+          echo "UNIQUE_SUFFIX=$UNIQUE_SUFFIX" >> $GITHUB_ENV
+          echo "Creating new database with suffix: $UNIQUE_SUFFIX"
+        else
+          echo "UNIQUE_SUFFIX=" >> $GITHUB_ENV
+          echo "Using existing database (no suffix)"
+        fi
       timeout-minutes: 1
 
     - name: Checkout code
@@ -192,7 +207,8 @@ jobs:
     - name: Terraform Plan
       run: |
         echo "📋 Creating Terraform plan..."
-        echo "🔍 Running terraform plan with verbose output..."
+        echo "Database creation mode: ${{ env.CREATE_NEW_DB }}"
+        echo "Resource suffix: '${{ env.UNIQUE_SUFFIX }}'"
         terraform plan -out=tfplan -detailed-exitcode \
           -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
           -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
