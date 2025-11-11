@@ -196,6 +196,19 @@ jobs:
       with:
         terraform_version: '1.6.0'
 
+    - name: Clear any stale Terraform locks
+      run: |
+        echo "🔓 Checking for stale Terraform locks..."
+        LOCK_COUNT=$(aws dynamodb scan --table-name ami-backend-terraform-locks --region us-east-1 --select COUNT --output text --query 'Count')
+        if [ "$LOCK_COUNT" -gt 0 ]; then
+          echo "Found $LOCK_COUNT stale lock(s), clearing..."
+          aws dynamodb delete-item --table-name ami-backend-terraform-locks --key '{"LockID":{"S":"ami-backend-terraform-state/terraform.tfstate"}}' --region us-east-1
+          echo "✅ Stale locks cleared"
+        else
+          echo "✅ No stale locks found"
+        fi
+      timeout-minutes: 2
+
     - name: Terraform Init
       run: |
         echo "🚀 Initializing Terraform with S3 backend..."
