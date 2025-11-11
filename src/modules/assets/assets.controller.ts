@@ -114,15 +114,28 @@ export class AssetsController {
   }
 
   @Post('bulk-import')
-  @ApiOperation({ summary: 'Bulk import assets from CSV' })
+  @ApiOperation({ summary: 'Bulk import industries, assets, makes, and models from CSV' })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 201, description: 'Bulk import job started' })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Bulk import completed',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        totalRows: { type: 'number' },
+        successCount: { type: 'number' },
+        errorCount: { type: 'number' },
+        errors: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
   @UseInterceptors(FileInterceptor('file'))
   bulkImport(
     @Body() bulkImportDto: BulkImportDto,
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: User,
   ) {
-    return this.assetsService.bulkImport(bulkImportDto, user.id);
+    return this.assetsService.bulkImport(bulkImportDto, file, user.id);
   }
 }

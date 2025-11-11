@@ -8,6 +8,10 @@ import { Asset } from '../../entities/asset.entity';
 import { Project } from '../../entities/project.entity';
 import { User } from '../../entities/user.entity';
 import { AssetProcessor } from './processors/asset.processor';
+import { IndustriesModule } from '../industries/industries.module';
+import { AssetClassesModule } from '../asset-classes/asset-classes.module';
+import { MakesModule } from '../makes/makes.module';
+import { ModelsModule } from '../models/models.module';
 
 @Module({
   imports: [
@@ -15,6 +19,10 @@ import { AssetProcessor } from './processors/asset.processor';
     BullModule.registerQueue({
       name: 'asset-import',
     }),
+    IndustriesModule,
+    AssetClassesModule,
+    MakesModule,
+    ModelsModule,
   ],
   providers: [AssetsService, AssetProcessor],
   controllers: [AssetsController],
