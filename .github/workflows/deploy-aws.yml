@@ -259,6 +259,9 @@ jobs:
         # Import ECS Cluster
         import_if_needed "aws_ecs_cluster.main" "ami-backend-cluster" "ECS Cluster"
 
+        # Import ECS Service
+        import_if_needed "aws_ecs_service.main" "ami-backend-cluster/ami-backend-service" "ECS Service"
+
         # Import Load Balancer
         ALB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "")
         if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
