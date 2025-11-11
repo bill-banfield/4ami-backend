@@ -1,6 +1,15 @@
 # AWS Provider Configuration
 terraform {
   required_version = ">= 1.0"
+
+  backend "s3" {
+    bucket         = "ami-backend-terraform-state"
+    key            = "terraform.tfstate"
+    region         = "us-east-1"
+    encrypt        = true
+    dynamodb_table = "ami-backend-terraform-locks"
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
