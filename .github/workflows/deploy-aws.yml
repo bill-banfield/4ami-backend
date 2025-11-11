@@ -108,11 +108,19 @@ jobs:
         echo "✅ Resource check completed"
       timeout-minutes: 3
 
-    - name: Clean up conflicting resources
+    - name: Skip cleanup for existing infrastructure
+      if: env.CREATE_NEW_DB == 'false'
       run: |
-        echo "🧹 Cleaning up conflicting resources..."
+        echo "ℹ️  Skipping resource cleanup - using existing infrastructure"
+        echo "Database mode: Reusing ami-backend-postgres"
+      timeout-minutes: 1
+
+    - name: Clean up conflicting resources
+      if: env.CREATE_NEW_DB == 'true'
+      run: |
+        echo "🧹 Cleaning up conflicting resources for new database deployment..."
         echo "Using unique suffix: ${{ env.UNIQUE_SUFFIX }}"
-        
+
         # Delete ECR repository if it exists
         if aws ecr describe-repositories --repository-names ami-backend-${{ env.UNIQUE_SUFFIX }}-repo >/dev/null 2>&1; then
           echo "Deleting existing ECR repository..."
