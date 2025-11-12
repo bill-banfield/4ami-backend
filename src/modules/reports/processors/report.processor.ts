@@ -24,16 +24,14 @@ export class ReportProcessor {
   ) {}
 
   @Process('generate-report')
-  async handleReportGeneration(
-    job: Job<{
-      reportId: string;
-      projectId?: string;
-      reportType?: string;
-      userId: string;
-    }>,
-  ) {
+  async handleReportGeneration(job: Job<{
+    reportId: string;
+    projectId?: string;
+    reportType?: string;
+    userId: string;
+  }>) {
     const { reportId, projectId, reportType = 'general' } = job.data;
-
+    
     try {
       const report = await this.reportRepository.findOne({
         where: { id: reportId },
@@ -76,7 +74,7 @@ export class ReportProcessor {
       }
 
       const filePath = path.join(uploadsDir, fileName);
-
+      
       // In a real implementation, you would generate a PDF here
       // For now, we'll create a JSON file as a placeholder
       fs.writeFileSync(filePath, JSON.stringify(reportData, null, 2));
@@ -98,12 +96,12 @@ export class ReportProcessor {
       };
     } catch (error) {
       console.error('Report generation error:', error);
-
+      
       // Update report status to failed
       const report = await this.reportRepository.findOne({
         where: { id: reportId },
       });
-
+      
       if (report) {
         report.status = ReportStatus.FAILED;
         report.metadata = {
@@ -128,14 +126,8 @@ export class ReportProcessor {
 
     const assets = await queryBuilder.getMany();
 
-    const totalValue = assets.reduce(
-      (sum, asset) => sum + (asset.value || 0),
-      0,
-    );
-    const totalResidualValue = assets.reduce(
-      (sum, asset) => sum + (asset.residualValue || 0),
-      0,
-    );
+    const totalValue = assets.reduce((sum, asset) => sum + (asset.value || 0), 0);
+    const totalResidualValue = assets.reduce((sum, asset) => sum + (asset.residualValue || 0), 0);
 
     return {
       reportType: 'asset_analysis',
@@ -158,9 +150,7 @@ export class ReportProcessor {
     };
   }
 
-  private async generateResidualAnalysisReport(
-    projectId?: string,
-  ): Promise<any> {
+  private async generateResidualAnalysisReport(projectId?: string): Promise<any> {
     const queryBuilder = this.assetRepository
       .createQueryBuilder('asset')
       .leftJoinAndSelect('asset.project', 'project')
@@ -174,10 +164,8 @@ export class ReportProcessor {
 
     const residualAnalysis = assets.map(asset => {
       const depreciation = (asset.value || 0) - (asset.residualValue || 0);
-      const depreciationRate = asset.value
-        ? (depreciation / asset.value) * 100
-        : 0;
-
+      const depreciationRate = asset.value ? (depreciation / asset.value) * 100 : 0;
+      
       return {
         id: asset.id,
         name: asset.name,
@@ -195,18 +183,9 @@ export class ReportProcessor {
       generatedAt: new Date(),
       summary: {
         totalAssets: assets.length,
-        totalOriginalValue: assets.reduce(
-          (sum, asset) => sum + (asset.value || 0),
-          0,
-        ),
-        totalResidualValue: assets.reduce(
-          (sum, asset) => sum + (asset.residualValue || 0),
-          0,
-        ),
-        totalDepreciation: residualAnalysis.reduce(
-          (sum, item) => sum + item.depreciation,
-          0,
-        ),
+        totalOriginalValue: assets.reduce((sum, asset) => sum + (asset.value || 0), 0),
+        totalResidualValue: assets.reduce((sum, asset) => sum + (asset.residualValue || 0), 0),
+        totalDepreciation: residualAnalysis.reduce((sum, item) => sum + item.depreciation, 0),
       },
       analysis: residualAnalysis,
     };
@@ -226,14 +205,8 @@ export class ReportProcessor {
       throw new Error('Project not found');
     }
 
-    const totalAssetValue = project.assets.reduce(
-      (sum, asset) => sum + (asset.value || 0),
-      0,
-    );
-    const totalResidualValue = project.assets.reduce(
-      (sum, asset) => sum + (asset.residualValue || 0),
-      0,
-    );
+    const totalAssetValue = project.assets.reduce((sum, asset) => sum + (asset.value || 0), 0);
+    const totalResidualValue = project.assets.reduce((sum, asset) => sum + (asset.residualValue || 0), 0);
 
     return {
       reportType: 'project_summary',
@@ -252,10 +225,7 @@ export class ReportProcessor {
         totalReports: project.reports.length,
         totalAssetValue,
         totalResidualValue,
-        averageAssetValue:
-          project.assets.length > 0
-            ? totalAssetValue / project.assets.length
-            : 0,
+        averageAssetValue: project.assets.length > 0 ? totalAssetValue / project.assets.length : 0,
       },
       assets: project.assets.map(asset => ({
         id: asset.id,
@@ -285,10 +255,7 @@ export class ReportProcessor {
       summary: {
         totalAssets: assets.length,
         totalValue: assets.reduce((sum, asset) => sum + (asset.value || 0), 0),
-        totalResidualValue: assets.reduce(
-          (sum, asset) => sum + (asset.residualValue || 0),
-          0,
-        ),
+        totalResidualValue: assets.reduce((sum, asset) => sum + (asset.residualValue || 0), 0),
       },
       assets: assets.map(asset => ({
         id: asset.id,
