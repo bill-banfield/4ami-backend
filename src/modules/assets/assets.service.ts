@@ -8,8 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import * as csvParser from 'csv-parser';
-import { Readable } from 'stream';
 
 import { Asset } from '../../entities/asset.entity';
 import { Project } from '../../entities/project.entity';
@@ -18,10 +16,6 @@ import { AssetStatus } from '../../common/enums/asset-status.enum';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { BulkImportDto } from './dto/bulk-import.dto';
-import { IndustriesService } from '../industries/industries.service';
-import { AssetClassesService } from '../asset-classes/asset-classes.service';
-import { MakesService } from '../makes/makes.service';
-import { ModelsService } from '../models/models.service';
 
 @Injectable()
 export class AssetsService {
@@ -34,10 +28,6 @@ export class AssetsService {
     private userRepository: Repository<User>,
     @InjectQueue('asset-import')
     private assetImportQueue: Queue,
-    private industriesService: IndustriesService,
-    private assetClassesService: AssetClassesService,
-    private makesService: MakesService,
-    private modelsService: ModelsService,
   ) {}
 
   async create(createAssetDto: CreateAssetDto, userId: string): Promise<Asset> {
@@ -159,13 +149,7 @@ export class AssetsService {
     bulkImportDto: BulkImportDto,
     file: Express.Multer.File,
     userId: string,
-  ): Promise<{ 
-    message: string; 
-    totalRows: number; 
-    successCount: number; 
-    errorCount: number; 
-    errors: string[] 
-  }> {
+  ): Promise<{ jobId: string; message: string }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -191,99 +175,19 @@ export class AssetsService {
       }
     }
 
-    // Parse CSV and create entities
-    const result = await this.parseAndCreateEntities(file, bulkImportDto);
-
-    return result;
-  }
-
-  private async parseAndCreateEntities(
-    file: Express.Multer.File,
-    bulkImportDto: BulkImportDto,
-  ): Promise<{ 
-    message: string; 
-    totalRows: number; 
-    successCount: number; 
-    errorCount: number; 
-    errors: string[] 
-  }> {
-    const rows: any[] = [];
-    const errors: string[] = [];
-    let totalRows = 0;
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Create a readable stream from the file buffer
-    const stream = Readable.from(file.buffer.toString());
-
-    // Parse CSV
-    await new Promise<void>((resolve, reject) => {
-      stream
-        .pipe(csvParser())
-        .on('data', (row) => {
-          totalRows++;
-          rows.push(row);
-        })
-        .on('end', () => resolve())
-        .on('error', (error) => reject(error));
+    // Enqueue job for async processing
+    const job = await this.assetImportQueue.add('bulk-import', {
+      fileBuffer: file.buffer.toString('base64'), // Convert buffer to base64 for serialization
+      fileName: file.originalname,
+      projectId: bulkImportDto.projectId,
+      skipDuplicates: bulkImportDto.skipDuplicates ?? true,
+      updateExisting: bulkImportDto.updateExisting ?? false,
+      userId,
     });
 
-    // Process each row
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const rowNumber = i + 2; // +2 because row 1 is header and we start from 0
-
-      try {
-        // Validate required fields
-        if (!row.industry || !row.assetName || !row.makeName || !row.modelName) {
-          errors.push(
-            `Row ${rowNumber}: Missing required fields (industry, assetName, makeName, or modelName)`,
-          );
-          errorCount++;
-          continue;
-        }
-
-        // Create or find industry
-        const industry = await this.industriesService.findOrCreate(
-          row.industry.trim(),
-        );
-
-        // Create or find asset class (using assetName)
-        const assetClass = await this.assetClassesService.findOrCreate(
-          industry.id,
-          row.assetName.trim(),
-        );
-
-        // Create or find make
-        const make = await this.makesService.findOrCreate(
-          industry.id,
-          assetClass.id,
-          row.makeName.trim(),
-        );
-
-        // Create or find model
-        const model = await this.modelsService.findOrCreate(
-          industry.id,
-          assetClass.id,
-          make.id,
-          row.modelName.trim(),
-        );
-
-        successCount++;
-      } catch (error) {
-        errorCount++;
-        errors.push(
-          `Row ${rowNumber}: ${error.message || 'Failed to process row'}`,
-        );
-      }
-    }
-
     return {
-      message: 'Bulk import completed',
-      totalRows,
-      successCount,
-      errorCount,
-      errors,
+      jobId: job.id.toString(),
+      message: 'Bulk import job enqueued for processing',
     };
   }
 

@@ -118,18 +118,16 @@ export class AssetsController {
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ 
     status: 201, 
-    description: 'Bulk import completed',
+    description: 'Bulk import job enqueued for asynchronous processing',
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string' },
-        totalRows: { type: 'number' },
-        successCount: { type: 'number' },
-        errorCount: { type: 'number' },
-        errors: { type: 'array', items: { type: 'string' } },
+        jobId: { type: 'string', description: 'Bull queue job ID for tracking' },
+        message: { type: 'string', description: 'Status message' },
       },
     },
   })
+  @ApiResponse({ status: 400, description: 'Invalid file or missing required fields' })
   @UseInterceptors(FileInterceptor('file'))
   bulkImport(
     @Body() bulkImportDto: BulkImportDto,
