@@ -10,10 +10,7 @@ export class ProcessResidualAnalysisDto {
   @IsObject()
   formData: Record<string, any>;
 
-  @ApiProperty({
-    example: '123e4567-e89b-12d3-a456-426614174000',
-    required: false,
-  })
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000', required: false })
   @IsOptional()
   @IsUUID()
   projectId?: string;

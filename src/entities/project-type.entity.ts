@@ -25,7 +25,7 @@ export class ProjectType {
   @Column({ default: true })
   isActive: boolean;
 
-  @OneToMany(() => Project, project => project.projectType)
+  @OneToMany(() => Project, (project) => project.projectType)
   projects: Project[];
 
   @CreateDateColumn()

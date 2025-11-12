@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, IsEnum } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsEnum } from 'class-validator';
 import { UserRole } from '../../../common/enums/user-role.enum';
 
 export class SendInvitationDto {
@@ -19,14 +19,13 @@ export class SendInvitationDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({
-    enum: UserRole,
+  @ApiProperty({ 
+    enum: UserRole, 
     enumName: 'UserRole',
-    example: UserRole.CUSTOMER_USER,
+    example: UserRole.CUSTOMER_USER
   })
   @IsEnum(UserRole, {
-    message:
-      'role must be one of the following values: ADMIN, CUSTOMER_ADMIN, CUSTOMER_USER',
+    message: 'role must be one of the following values: ADMIN, CUSTOMER_ADMIN, CUSTOMER_USER'
   })
   role: UserRole;
 

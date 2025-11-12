@@ -23,10 +23,7 @@ export class UsersService {
     private emailService: EmailService,
   ) {}
 
-  async create(
-    createUserDto: CreateUserDto,
-    creatorId?: string,
-  ): Promise<User> {
+  async create(createUserDto: CreateUserDto, creatorId?: string): Promise<User> {
     const { email, firstName, lastName, role, phone } = createUserDto;
 
     // Check if user already exists
@@ -48,9 +45,7 @@ export class UsersService {
       if (creator) {
         // Check if CUSTOMER_ADMIN has registered their company
         if (creator.role === UserRole.CUSTOMER_ADMIN && !creator.companyId) {
-          throw new BadRequestException(
-            'You must register your company before creating users',
-          );
+          throw new BadRequestException('You must register your company before creating users');
         }
         creatorCompanyId = creator.companyId;
       }
@@ -71,10 +66,7 @@ export class UsersService {
 
     // Send user credentials email
     try {
-      await this.emailService.sendUserCredentials(
-        savedUser,
-        savedUser.emailVerificationToken,
-      );
+      await this.emailService.sendUserCredentials(savedUser, savedUser.emailVerificationToken);
     } catch (error) {
       console.error('Failed to send user credentials email:', error);
       // Don't fail the user creation if email fails
@@ -83,11 +75,7 @@ export class UsersService {
     return savedUser;
   }
 
-  async findAll(
-    page: number = 1,
-    limit: number = 10,
-    currentUser?: User,
-  ): Promise<{
+  async findAll(page: number = 1, limit: number = 10, currentUser?: User): Promise<{
     users: User[];
     total: number;
     page: number;
@@ -101,11 +89,7 @@ export class UsersService {
     };
 
     // If the current user is a CUSTOMER_ADMIN, filter by their company
-    if (
-      currentUser &&
-      currentUser.role === UserRole.CUSTOMER_ADMIN &&
-      currentUser.companyId
-    ) {
+    if (currentUser && currentUser.role === UserRole.CUSTOMER_ADMIN && currentUser.companyId) {
       queryOptions.where = { companyId: currentUser.companyId };
     }
     // If the current user is ADMIN, return all users (no filtering)
@@ -141,9 +125,7 @@ export class UsersService {
     // If current user is CUSTOMER_ADMIN, check if the user belongs to their company
     if (currentUser && currentUser.role === UserRole.CUSTOMER_ADMIN) {
       if (user.companyId !== currentUser.companyId) {
-        throw new BadRequestException(
-          'You can only view users from your own company',
-        );
+        throw new BadRequestException('You can only view users from your own company');
       }
     }
 
@@ -167,10 +149,13 @@ export class UsersService {
     });
   }
 
-  async findByEmailVerificationTokenOrEmail(
-    token: string,
-    email?: string,
-  ): Promise<User | null> {
+  async findByInvitationCode(invitationCode: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { emailVerificationToken: invitationCode },
+    });
+  }
+
+  async findByEmailVerificationTokenOrEmail(token: string, email?: string): Promise<User | null> {
     // First try to find by token
     let user = await this.userRepository.findOne({
       where: { emailVerificationToken: token },
@@ -196,15 +181,11 @@ export class UsersService {
     // If not found by token, this might be a case where the user was already verified
     // We need to find the user by other means - this is a limitation of the current approach
     // The token should ideally be preserved or we need a different mechanism
-
+    
     return user;
   }
 
-  async update(
-    id: string,
-    updateUserDto: UpdateUserDto,
-    currentUser?: User,
-  ): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserDto, currentUser?: User): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
       relations: ['company'],
@@ -217,9 +198,7 @@ export class UsersService {
     // If current user is CUSTOMER_ADMIN, check if the user belongs to their company
     if (currentUser && currentUser.role === UserRole.CUSTOMER_ADMIN) {
       if (user.companyId !== currentUser.companyId) {
-        throw new BadRequestException(
-          'You can only update users from your own company',
-        );
+        throw new BadRequestException('You can only update users from your own company');
       }
     }
 
@@ -256,28 +235,15 @@ export class UsersService {
     // If current user is CUSTOMER_ADMIN, check if the user belongs to their company
     if (currentUser && currentUser.role === UserRole.CUSTOMER_ADMIN) {
       if (user.companyId !== currentUser.companyId) {
-        throw new BadRequestException(
-          'You can only delete users from your own company',
-        );
+        throw new BadRequestException('You can only delete users from your own company');
       }
     }
 
     await this.userRepository.remove(user);
   }
 
-  async inviteUser(
-    inviteUserDto: InviteUserDto,
-    inviterId: string,
-  ): Promise<User> {
-    const {
-      email,
-      firstName,
-      lastName,
-      role,
-      invitationCode,
-      company: companyName,
-      source,
-    } = inviteUserDto;
+  async inviteUser(inviteUserDto: InviteUserDto, inviterId: string): Promise<User> {
+    const { email, firstName, lastName, title, role, invitationCode, company: companyName, source } = inviteUserDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
@@ -299,15 +265,14 @@ export class UsersService {
 
     // Check if CUSTOMER_ADMIN has registered their company
     if (inviter.role === UserRole.CUSTOMER_ADMIN && !inviter.companyId) {
-      throw new BadRequestException(
-        'You must register your company before inviting users',
-      );
+      throw new BadRequestException('You must register your company before inviting users');
     }
 
     const user = this.userRepository.create({
       email,
       firstName,
       lastName,
+      title,
       role: role || UserRole.CUSTOMER_USER,
       companyName,
       source,
@@ -321,10 +286,7 @@ export class UsersService {
 
     // Send user credentials email
     try {
-      await this.emailService.sendUserCredentials(
-        savedUser,
-        savedUser.emailVerificationToken,
-      );
+      await this.emailService.sendUserCredentials(savedUser, savedUser.emailVerificationToken);
     } catch (error) {
       console.error('Failed to send user credentials email:', error);
       // Don't fail the user creation if email fails
@@ -346,9 +308,7 @@ export class UsersService {
     // If current user is CUSTOMER_ADMIN, check if the user belongs to their company
     if (currentUser && currentUser.role === UserRole.CUSTOMER_ADMIN) {
       if (user.companyId !== currentUser.companyId) {
-        throw new BadRequestException(
-          'You can only activate users from your own company',
-        );
+        throw new BadRequestException('You can only activate users from your own company');
       }
     }
 
@@ -377,9 +337,7 @@ export class UsersService {
     // If current user is CUSTOMER_ADMIN, check if the user belongs to their company
     if (currentUser && currentUser.role === UserRole.CUSTOMER_ADMIN) {
       if (user.companyId !== currentUser.companyId) {
-        throw new BadRequestException(
-          'You can only deactivate users from your own company',
-        );
+        throw new BadRequestException('You can only deactivate users from your own company');
       }
     }
 
@@ -414,13 +372,10 @@ export class UsersService {
       .groupBy('user.role')
       .getRawMany();
 
-    const roleStats = usersByRole.reduce(
-      (acc, item) => {
-        acc[item.role] = parseInt(item.count);
-        return acc;
-      },
-      {} as Record<UserRole, number>,
-    );
+    const roleStats = usersByRole.reduce((acc, item) => {
+      acc[item.role] = parseInt(item.count);
+      return acc;
+    }, {} as Record<UserRole, number>);
 
     return {
       totalUsers,

@@ -50,3 +50,4 @@ export class UserVerificationResponseDto {
   @ApiProperty({ example: 'John Doe' })
   fullName: string;
 }
+

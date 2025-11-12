@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsUUID } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsUUID } from 'class-validator';
 
 export class CreateUtilizationScenarioDto {
   @ApiProperty({ required: false, example: 'uuid-of-equipment' })
@@ -22,7 +22,7 @@ export class CreateUtilizationScenarioDto {
   @IsNumber()
   proposedUtilization?: number;
 
-  @ApiProperty({ required: false, example: 125.5 })
+  @ApiProperty({ required: false, example: 125.50 })
   @IsOptional()
   @IsNumber()
   unitPrice?: number;

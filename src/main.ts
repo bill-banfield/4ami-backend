@@ -1,12 +1,38 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { Seeder } from './seeders';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Ensure upload directories exist on startup
+ */
+function ensureUploadDirectories() {
+  const directories = [
+    path.join(process.cwd(), 'uploads'),
+    path.join(process.cwd(), 'uploads', 'projects'),
+    path.join(process.cwd(), 'uploads', 'reports'),
+  ];
+
+  directories.forEach((dir) => {
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+        console.log(`✅ Created directory: ${dir}`);
+      } catch (error) {
+        console.error(`❌ Failed to create directory: ${dir}`, error);
+      }
+    }
+  });
+}
 
 async function bootstrap() {
+  // Ensure upload directories exist
+  ensureUploadDirectories();
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
@@ -41,7 +67,7 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-
+  
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup(`${apiPrefix}/docs`, app, document);
 
@@ -61,13 +87,9 @@ async function bootstrap() {
 
   const port = configService.get('PORT', 3000);
   await app.listen(port);
-
-  console.log(
-    `🚀 4AMI Backend is running on: http://localhost:${port}/${apiPrefix}`,
-  );
-  console.log(
-    `📚 API Documentation: http://localhost:${port}/${apiPrefix}/docs`,
-  );
+  
+  console.log(`🚀 4AMI Backend is running on: http://localhost:${port}/${apiPrefix}`);
+  console.log(`📚 API Documentation: http://localhost:${port}/${apiPrefix}/docs`);
 }
 
 bootstrap();

@@ -24,10 +24,7 @@ export class CompaniesService {
     private emailService: EmailService,
   ) {}
 
-  async register(
-    registerCompanyDto: RegisterCompanyDto,
-    userId: string,
-  ): Promise<Company> {
+  async register(registerCompanyDto: RegisterCompanyDto, userId: string): Promise<Company> {
     // Find the user
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -36,16 +33,12 @@ export class CompaniesService {
 
     // Check if user is CUSTOMER_ADMIN
     if (user.role !== UserRole.CUSTOMER_ADMIN) {
-      throw new BadRequestException(
-        'Only customer admins can register companies',
-      );
+      throw new BadRequestException('Only customer admins can register companies');
     }
 
     // Check if user already belongs to a company
     if (user.companyId) {
-      throw new ConflictException(
-        'You already belong to a company. Cannot create a new company.',
-      );
+      throw new ConflictException('You already belong to a company. Cannot create a new company.');
     }
 
     // Create company
@@ -61,10 +54,7 @@ export class CompaniesService {
 
     // Send email notification to system admin
     try {
-      await this.emailService.sendCompanyRegistrationNotification(
-        savedCompany,
-        user,
-      );
+      await this.emailService.sendCompanyRegistrationNotification(savedCompany, user);
     } catch (error) {
       console.error('Failed to send company registration email:', error);
       // Don't fail the registration if email fails
@@ -86,10 +76,7 @@ export class CompaniesService {
     return company;
   }
 
-  async findAll(
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<{
+  async findAll(page: number = 1, limit: number = 10): Promise<{
     companies: Company[];
     total: number;
     page: number;
@@ -110,11 +97,7 @@ export class CompaniesService {
     };
   }
 
-  async update(
-    id: string,
-    updateCompanyDto: UpdateCompanyDto,
-    userId: string,
-  ): Promise<Company> {
+  async update(id: string, updateCompanyDto: UpdateCompanyDto, userId: string): Promise<Company> {
     // Find the company
     const company = await this.companyRepository.findOne({
       where: { id },
@@ -133,9 +116,7 @@ export class CompaniesService {
 
     // Check if user is CUSTOMER_ADMIN
     if (user.role !== UserRole.CUSTOMER_ADMIN) {
-      throw new BadRequestException(
-        'Only customer admins can update companies',
-      );
+      throw new BadRequestException('Only customer admins can update companies');
     }
 
     // Check if user belongs to this company

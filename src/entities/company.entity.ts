@@ -61,10 +61,10 @@ export class Company {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => User, user => user.companiesCreated)
+  @ManyToOne(() => User, (user) => user.companiesCreated)
   @JoinColumn({ name: 'createdById' })
   createdBy: User;
 
-  @OneToMany(() => User, user => user.company)
+  @OneToMany(() => User, (user) => user.company)
   users: User[];
 }

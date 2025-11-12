@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -94,11 +95,7 @@ export class AssetsService {
     };
   }
 
-  async findOne(
-    id: string,
-    userId?: string,
-    userRole?: string,
-  ): Promise<Asset> {
+  async findOne(id: string, userId?: string, userRole?: string): Promise<Asset> {
     const queryBuilder = this.assetRepository
       .createQueryBuilder('asset')
       .leftJoinAndSelect('asset.project', 'project')
@@ -150,11 +147,22 @@ export class AssetsService {
 
   async bulkImport(
     bulkImportDto: BulkImportDto,
+    file: Express.Multer.File,
     userId: string,
   ): Promise<{ jobId: string; message: string }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Validate file
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+
+    // Validate file type
+    if (!file.originalname.toLowerCase().endsWith('.csv')) {
+      throw new BadRequestException('Only CSV files are accepted');
     }
 
     // Validate project if provided
@@ -167,22 +175,23 @@ export class AssetsService {
       }
     }
 
-    // Add job to queue
+    // Enqueue job for async processing
     const job = await this.assetImportQueue.add('bulk-import', {
-      ...bulkImportDto,
+      fileBuffer: file.buffer.toString('base64'), // Convert buffer to base64 for serialization
+      fileName: file.originalname,
+      projectId: bulkImportDto.projectId,
+      skipDuplicates: bulkImportDto.skipDuplicates ?? true,
+      updateExisting: bulkImportDto.updateExisting ?? false,
       userId,
     });
 
     return {
       jobId: job.id.toString(),
-      message: 'Bulk import job started',
+      message: 'Bulk import job enqueued for processing',
     };
   }
 
-  async getDashboardStats(
-    userId?: string,
-    userRole?: string,
-  ): Promise<{
+  async getDashboardStats(userId?: string, userRole?: string): Promise<{
     totalAssets: number;
     activeAssets: number;
     inactiveAssets: number;
@@ -205,20 +214,10 @@ export class AssetsService {
       valueStats,
     ] = await Promise.all([
       queryBuilder.getCount(),
-      queryBuilder
-        .clone()
-        .andWhere('asset.status = :status', { status: AssetStatus.ACTIVE })
-        .getCount(),
-      queryBuilder
-        .clone()
-        .andWhere('asset.status = :status', { status: AssetStatus.INACTIVE })
-        .getCount(),
-      queryBuilder
-        .clone()
-        .andWhere('asset.status = :status', { status: AssetStatus.ARCHIVED })
-        .getCount(),
-      queryBuilder
-        .clone()
+      queryBuilder.clone().andWhere('asset.status = :status', { status: AssetStatus.ACTIVE }).getCount(),
+      queryBuilder.clone().andWhere('asset.status = :status', { status: AssetStatus.INACTIVE }).getCount(),
+      queryBuilder.clone().andWhere('asset.status = :status', { status: AssetStatus.ARCHIVED }).getCount(),
+      queryBuilder.clone()
         .select('SUM(asset.value)', 'totalValue')
         .addSelect('SUM(asset.residualValue)', 'totalResidualValue')
         .getRawOne(),
@@ -251,7 +250,7 @@ export class AssetsService {
     return this.assetRepository.save(asset);
   }
 
-  async generateAssetForm(_projectId?: string): Promise<{
+  async generateAssetForm(projectId?: string): Promise<{
     formFields: Array<{
       name: string;
       type: string;
@@ -263,12 +262,7 @@ export class AssetsService {
     const formFields = [
       { name: 'name', type: 'text', required: true },
       { name: 'description', type: 'textarea', required: false },
-      {
-        name: 'type',
-        type: 'select',
-        required: true,
-        options: ['equipment', 'vehicle', 'property', 'other'],
-      },
+      { name: 'type', type: 'select', required: true, options: ['equipment', 'vehicle', 'property', 'other'] },
       { name: 'value', type: 'number', required: true },
       { name: 'residualValue', type: 'number', required: false },
       { name: 'purchaseDate', type: 'date', required: false },
