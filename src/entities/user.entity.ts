@@ -88,29 +88,29 @@ export class User {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => Company, company => company.users)
+  @ManyToOne(() => Company, (company) => company.users)
   @JoinColumn({ name: 'companyId' })
   @Exclude()
   company: Company;
 
-  @ManyToOne(() => User, user => user.createdUsers)
+  @ManyToOne(() => User, (user) => user.createdUsers)
   @JoinColumn({ name: 'createdById' })
   @Exclude()
   createdBy: User;
 
-  @OneToMany(() => User, user => user.createdBy)
+  @OneToMany(() => User, (user) => user.createdBy)
   @Exclude()
   createdUsers: User[];
 
-  @OneToMany(() => Company, company => company.createdBy)
+  @OneToMany(() => Company, (company) => company.createdBy)
   @Exclude()
   companiesCreated: Company[];
 
-  @OneToMany(() => Project, project => project.createdBy)
+  @OneToMany(() => Project, (project) => project.createdBy)
   @Exclude()
   projects: Project[];
 
-  @OneToMany(() => Asset, asset => asset.createdBy)
+  @OneToMany(() => Asset, (asset) => asset.createdBy)
   @Exclude()
   assets: Asset[];
 

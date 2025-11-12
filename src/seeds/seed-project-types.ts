@@ -8,8 +8,7 @@ export async function seedProjectTypes(dataSource: DataSource) {
     {
       code: 'residual_analysis',
       name: 'Residual Analysis',
-      description:
-        'Asset residual value analysis project for equipment evaluation',
+      description: 'Asset residual value analysis project for equipment evaluation',
       isActive: true,
     },
     // Add more project types here in the future
