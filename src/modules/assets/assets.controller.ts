@@ -114,7 +114,10 @@ export class AssetsController {
   }
 
   @Post('bulk-import')
-  @ApiOperation({ summary: 'Bulk import industries, assets, makes, and models from CSV' })
+  @ApiOperation({ 
+    summary: 'Bulk import industries, asset classes, makes, models, and equipment records from CSV',
+    description: 'Accepts CSV with headers: Industry, Asset Class, Make, Model. Creates hierarchical entities and equipment records retrievable via GET /equipments endpoint.'
+  })
   @ApiConsumes('multipart/form-data')
   @ApiResponse({ 
     status: 201, 

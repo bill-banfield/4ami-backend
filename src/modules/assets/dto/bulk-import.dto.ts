@@ -5,7 +5,7 @@ export class BulkImportDto {
   @ApiProperty({
     type: 'string',
     format: 'binary',
-    description: 'CSV file with columns: industry, assetName, makeName, modelName',
+    description: 'CSV file with columns: Industry, Asset Class, Make, Model',
     required: true,
   })
   file: any;
