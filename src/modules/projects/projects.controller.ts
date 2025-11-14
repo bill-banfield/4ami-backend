@@ -93,6 +93,14 @@ export class ProjectsController {
     return this.projectsService.getDashboardStats(user.id, user.role);
   }
 
+  @Get('user/projects')
+  @ApiOperation({ summary: 'Get all projects for current user' })
+  @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  findByCurrentUser(@CurrentUser() user: User) {
+    return this.projectsService.findByCurrentUser(user.id, user.role);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get project by ID' })
   @ApiResponse({ status: 200, description: 'Project retrieved successfully' })

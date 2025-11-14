@@ -424,6 +424,50 @@ export class ProjectsService {
     return project;
   }
 
+  async findByCurrentUser(userId: string, userRole: UserRole): Promise<Project[]> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const queryBuilder = this.projectRepository
+      .createQueryBuilder('project')
+      // Select only specific fields for createdBy
+      .leftJoin('project.createdBy', 'createdBy')
+      .addSelect(['createdBy.id', 'createdBy.firstName', 'createdBy.lastName'])
+      // Select only specific fields for company
+      .leftJoin('project.company', 'company')
+      .addSelect(['company.id', 'company.companyName'])
+      // Select only specific fields for projectType
+      .leftJoin('project.projectType', 'projectType')
+      .addSelect(['projectType.id', 'projectType.name'])
+      // Load all fields for these relations
+      .leftJoinAndSelect('project.client', 'client')
+      .leftJoinAndSelect('project.source', 'source')
+      .leftJoinAndSelect('project.financial', 'financial')
+      .leftJoinAndSelect('project.transaction', 'transaction')
+      .leftJoinAndSelect('project.equipments', 'equipments')
+      .leftJoinAndSelect('project.utilizationScenarios', 'utilizationScenarios')
+      .leftJoinAndSelect('project.assets', 'assets')
+      .leftJoinAndSelect('project.reports', 'reports')
+      .leftJoinAndSelect('project.attachments', 'attachments');
+
+    // Filter based on user role
+    if (userRole === UserRole.ADMIN) {
+      // Admin: Return all projects from user's company
+      if (user.companyId) {
+        queryBuilder.where('project.companyId = :companyId', { companyId: user.companyId });
+      }
+    } else {
+      // Regular User: Return only projects created by the user
+      queryBuilder.where('project.createdById = :userId', { userId });
+    }
+
+    const projects = await queryBuilder.getMany();
+
+    return projects;
+  }
+
   async update(
     id: string,
     updateProjectDto: UpdateProjectDto,
