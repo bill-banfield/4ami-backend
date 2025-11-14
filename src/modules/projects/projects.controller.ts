@@ -94,11 +94,17 @@ export class ProjectsController {
   }
 
   @Get('user/projects')
-  @ApiOperation({ summary: 'Get all projects for current user' })
+  @ApiOperation({ summary: 'Get all projects for current user with pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
   @ApiResponse({ status: 404, description: 'User not found' })
-  findByCurrentUser(@CurrentUser() user: User) {
-    return this.projectsService.findByCurrentUser(user.id, user.role);
+  findByCurrentUser(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @CurrentUser() user: User,
+  ) {
+    return this.projectsService.findByCurrentUser(user.id, user.role, page, limit);
   }
 
   @Get(':id')

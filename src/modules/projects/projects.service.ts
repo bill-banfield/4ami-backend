@@ -424,7 +424,17 @@ export class ProjectsService {
     return project;
   }
 
-  async findByCurrentUser(userId: string, userRole: UserRole): Promise<Project[]> {
+  async findByCurrentUser(
+    userId: string,
+    userRole: UserRole,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    projects: Project[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -453,19 +463,28 @@ export class ProjectsService {
       .leftJoinAndSelect('project.attachments', 'attachments');
 
     // Filter based on user role
-    if (userRole === UserRole.ADMIN) {
+    if (userRole === UserRole.CUSTOMER_ADMIN) {
       // Admin: Return all projects from user's company
       if (user.companyId) {
         queryBuilder.where('project.companyId = :companyId', { companyId: user.companyId });
       }
-    } else {
-      // Regular User: Return only projects created by the user
+    } else if (userRole === UserRole.CUSTOMER_USER) {
+      // Customer User: Return only projects created by the user
       queryBuilder.where('project.createdById = :userId', { userId });
     }
 
-    const projects = await queryBuilder.getMany();
+    const [projects, total] = await queryBuilder
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('project.createdAt', 'DESC')
+      .getManyAndCount();
 
-    return projects;
+    return {
+      projects,
+      total,
+      page,
+      limit,
+    };
   }
 
   async update(
