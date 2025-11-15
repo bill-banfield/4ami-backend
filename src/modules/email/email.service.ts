@@ -117,6 +117,7 @@ export class EmailService {
     creator: User,
     company: Company,
     recipients: string[],
+    attachments?: any[],
   ): Promise<{ jobId: string; message: string }> {
     console.log('📧 EmailService.sendProjectCreationNotification called:', {
       projectId: project.id,
@@ -124,6 +125,7 @@ export class EmailService {
       creatorEmail: creator.email,
       companyName: company.companyName,
       recipientsCount: recipients.length,
+      attachmentsCount: attachments?.length || 0,
     });
 
     const job = await this.emailQueue.add(
@@ -133,6 +135,7 @@ export class EmailService {
         creator,
         company,
         recipients,
+        attachments: attachments || [],
       },
     );
 

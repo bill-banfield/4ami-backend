@@ -20,6 +20,11 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { EmailModule } from './modules/email/email.module';
 import { AiModule } from './modules/ai/ai.module';
 import { HealthModule } from './modules/health/health.module';
+import { IndustriesModule } from './modules/industries/industries.module';
+import { AssetClassesModule } from './modules/asset-classes/asset-classes.module';
+import { MakesModule } from './modules/makes/makes.module';
+import { ModelsModule } from './modules/models/models.module';
+import { EquipmentsModule } from './modules/equipments/equipments.module';
 
 // Common
 import { CommonModule } from './common/common.module';
@@ -155,6 +160,11 @@ import { CommonModule } from './common/common.module';
     ReportsModule,
     EmailModule,
     AiModule,
+    IndustriesModule,
+    AssetClassesModule,
+    MakesModule,
+    ModelsModule,
+    EquipmentsModule,
   ],
 })
 export class AppModule {}

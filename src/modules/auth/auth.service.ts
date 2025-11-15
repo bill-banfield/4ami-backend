@@ -202,6 +202,7 @@ export class AuthService {
     user.title = userData.title;
     user.phone = userData.phone;
     user.companyName = userData.companyName;
+    user.companyId = userData.companyId;
     user.source = userData.source;
     user.role = userData.role;
     user.isActive = userData.isActive;

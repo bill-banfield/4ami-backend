@@ -3,126 +3,186 @@ import { Job } from 'bull';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as csv from 'csv-parser';
-import * as fs from 'fs';
+import * as csvParser from 'csv-parser';
+import { Readable } from 'stream';
 
-import { Asset } from '../../../entities/asset.entity';
+import { IndustriesService } from '../../industries/industries.service';
+import { AssetClassesService } from '../../asset-classes/asset-classes.service';
+import { MakesService } from '../../makes/makes.service';
+import { ModelsService } from '../../models/models.service';
+import { Equipment } from '../../../entities/equipment.entity';
 import { AssetStatus } from '../../../common/enums/asset-status.enum';
 
 @Processor('asset-import')
 @Injectable()
 export class AssetProcessor {
   constructor(
-    @InjectRepository(Asset)
-    private assetRepository: Repository<Asset>,
+    @InjectRepository(Equipment)
+    private readonly equipmentRepository: Repository<Equipment>,
+    private readonly industriesService: IndustriesService,
+    private readonly assetClassesService: AssetClassesService,
+    private readonly makesService: MakesService,
+    private readonly modelsService: ModelsService,
   ) {}
 
   @Process('bulk-import')
   async handleBulkImport(
     job: Job<{
-      filePath: string;
+      fileBuffer: string;
+      fileName: string;
       projectId?: string;
       userId: string;
       skipDuplicates?: boolean;
       updateExisting?: boolean;
     }>,
   ) {
-    const {
-      filePath,
-      projectId,
-      userId,
-      skipDuplicates = true,
-      updateExisting = false,
-    } = job.data;
+    const { fileBuffer, fileName, skipDuplicates = true } = job.data;
+
+    console.log(`Starting bulk import job ${job.id} for file: ${fileName}`);
 
     try {
-      const assets: any[] = [];
+      // Decode base64 buffer back to string
+      const csvContent = Buffer.from(fileBuffer, 'base64').toString('utf-8');
 
-      // Read and parse CSV file
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(filePath)
-          .pipe(csv())
-          .on('data', row => assets.push(row))
-          .on('end', resolve)
-          .on('error', reject);
+      const rows: any[] = [];
+      const errors: string[] = [];
+
+      // Parse CSV from buffer
+      await new Promise<void>((resolve, reject) => {
+        const stream = Readable.from(csvContent);
+        stream
+          .pipe(csvParser())
+          .on('data', row => rows.push(row))
+          .on('end', () => resolve())
+          .on('error', error => reject(error));
       });
+
+      if (rows.length === 0) {
+        throw new Error('CSV file is empty or invalid');
+      }
+
+      console.log(`Parsed ${rows.length} rows from CSV`);
 
       let processed = 0;
       let skipped = 0;
-      let errors = 0;
+      let errorCount = 0;
 
-      for (const assetData of assets) {
+      // Process each row
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const rowNumber = i + 2; // +2 because row 1 is header and we start from 0
+
         try {
-          // Check if asset already exists (by name and type)
-          const existingAsset = await this.assetRepository.findOne({
-            where: {
-              name: assetData.name,
-              type: assetData.type,
-            },
-          });
+          // Support both old and new CSV header formats
+          const industryField = row['Industry'] || row.industry;
+          const assetClassField = row['Asset Class'] || row.assetName;
+          const makeField = row['Make'] || row.makeName;
+          const modelField = row['Model'] || row.modelName;
 
-          if (existingAsset) {
-            if (skipDuplicates) {
+          // Validate required fields
+          if (!industryField || !assetClassField || !makeField || !modelField) {
+            errors.push(
+              `Row ${rowNumber}: Missing required fields (Industry, Asset Class, Make, or Model)`,
+            );
+            errorCount++;
+            continue;
+          }
+
+          // Trim values
+          const industryName = industryField.trim();
+          const assetClassName = assetClassField.trim();
+          const makeName = makeField.trim();
+          const modelName = modelField.trim();
+
+          // Create or find industry
+          const industry =
+            await this.industriesService.findOrCreate(industryName);
+
+          // Create or find asset class
+          const assetClass = await this.assetClassesService.findOrCreate(
+            industry.id,
+            assetClassName,
+          );
+
+          // Create or find make
+          const make = await this.makesService.findOrCreate(
+            industry.id,
+            assetClass.id,
+            makeName,
+          );
+
+          // Create or find model
+          const model = await this.modelsService.findOrCreate(
+            industry.id,
+            assetClass.id,
+            make.id,
+            modelName,
+          );
+
+          // Check if equipment already exists (prevent duplicates)
+          if (skipDuplicates) {
+            const existingEquipment = await this.equipmentRepository.findOne({
+              where: {
+                industryId: industry.id,
+                assetClassId: assetClass.id,
+                makeId: make.id,
+                modelId: model.id,
+              },
+            });
+
+            if (existingEquipment) {
               skipped++;
-              continue;
-            } else if (updateExisting) {
-              // Update existing asset
-              Object.assign(existingAsset, {
-                description: assetData.description,
-                value: parseFloat(assetData.value) || existingAsset.value,
-                residualValue:
-                  parseFloat(assetData.residualValue) ||
-                  existingAsset.residualValue,
-                properties: assetData.properties
-                  ? JSON.parse(assetData.properties)
-                  : existingAsset.properties,
-                metadata: assetData.metadata
-                  ? JSON.parse(assetData.metadata)
-                  : existingAsset.metadata,
-              });
-              await this.assetRepository.save(existingAsset);
-              processed++;
               continue;
             }
           }
 
-          // Create new asset
-          const asset = this.assetRepository.create({
-            name: assetData.name,
-            description: assetData.description,
-            type: assetData.type,
-            value: parseFloat(assetData.value) || 0,
-            residualValue: parseFloat(assetData.residualValue) || 0,
+          // Create equipment record
+          const equipment = this.equipmentRepository.create({
+            industryId: industry.id,
+            assetClassId: assetClass.id,
+            makeId: make.id,
+            modelId: model.id,
+            industryName: industry.name,
+            assetClassName: assetClass.name,
+            makeName: make.name,
+            modelName: model.name,
             status: AssetStatus.ACTIVE,
-            properties: assetData.properties
-              ? JSON.parse(assetData.properties)
-              : {},
-            metadata: assetData.metadata ? JSON.parse(assetData.metadata) : {},
-            projectId,
-            createdById: userId,
+            projectId: job.data.projectId || null,
+            createdById: job.data.userId,
           });
 
-          await this.assetRepository.save(asset);
+          await this.equipmentRepository.save(equipment);
+
           processed++;
+
+          // Log progress every 100 rows
+          if (processed % 100 === 0) {
+            console.log(`Processed ${processed} rows...`);
+          }
         } catch (error) {
-          console.error(`Error processing asset ${assetData.name}:`, error);
-          errors++;
+          errorCount++;
+          const errorMessage =
+            error instanceof Error ? error.message : 'Failed to process row';
+          errors.push(`Row ${rowNumber}: ${errorMessage}`);
+          console.error(`Error processing row ${rowNumber}:`, errorMessage);
         }
       }
 
-      // Clean up file
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-
-      return {
+      const result = {
         processed,
         skipped,
-        errors,
-        total: assets.length,
+        errors: errorCount,
+        total: rows.length,
+        errorDetails: errors.length > 0 ? errors : undefined,
       };
+
+      console.log(`Bulk import job ${job.id} completed:`, result);
+
+      return result;
     } catch (error) {
-      console.error('Bulk import error:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Bulk import job ${job.id} failed:`, errorMessage);
       throw error;
     }
   }

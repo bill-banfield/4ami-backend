@@ -17,11 +17,15 @@ import { ProjectEquipment } from '../../entities/project-equipment.entity';
 import { ProjectFinancial } from '../../entities/project-financial.entity';
 import { ProjectTransaction } from '../../entities/project-transaction.entity';
 import { ProjectUtilizationScenario } from '../../entities/project-utilization-scenario.entity';
+import { ProjectAttachment } from '../../entities/project-attachment.entity';
 import { ProjectStatus } from '../../common/enums/project-status.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { EmailService } from '../email/email.service';
+import * as path from 'path';
+import * as fs from 'fs';
+import { validateFiles, ensureDirectoryExists } from '../../utils/file.utils';
 
 @Injectable()
 export class ProjectsService {
@@ -46,12 +50,15 @@ export class ProjectsService {
     private projectTransactionRepository: Repository<ProjectTransaction>,
     @InjectRepository(ProjectUtilizationScenario)
     private projectUtilizationScenarioRepository: Repository<ProjectUtilizationScenario>,
+    @InjectRepository(ProjectAttachment)
+    private projectAttachmentRepository: Repository<ProjectAttachment>,
     private emailService: EmailService,
   ) {}
 
   async create(
     createProjectDto: CreateProjectDto,
     userId: string,
+    files?: Express.Multer.File[],
   ): Promise<Project> {
     // Verify user exists and get companyId
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -64,7 +71,7 @@ export class ProjectsService {
       where: { code: createProjectDto.projectTypeCode, isActive: true },
     });
     if (!projectType) {
-      throw new BadRequestException('Invalid or inactive project type');
+      throw new BadRequestException('valid or inactive project type');
     }
 
     // Determine status:
@@ -165,6 +172,11 @@ export class ProjectsService {
       await this.projectUtilizationScenarioRepository.save(scenarios);
     }
 
+    // Handle file uploads if files were provided
+    if (files && files.length > 0) {
+      await this.saveProjectAttachments(savedProject.id, files, userId);
+    }
+
     // Return project with all relations
     const fullProject = await this.findOne(savedProject.id, userId, user.role);
 
@@ -228,16 +240,27 @@ export class ProjectsService {
         return;
       }
 
-      // Send notification
+      // Fetch project attachments if available
+      const attachments = await this.projectAttachmentRepository.find({
+        where: { projectId: project.id },
+        order: { createdAt: 'ASC' },
+      });
+
+      console.log(
+        `📎 Found ${attachments.length} attachments for project ${project.id}`,
+      );
+
+      // Send notification with attachments
       await this.emailService.sendProjectCreationNotification(
         project,
         creator,
         company,
         uniqueRecipients,
+        attachments,
       );
 
       console.log(
-        `✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins)`,
+        `✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins) with ${attachments.length} attachment(s)`,
       );
     } catch (error) {
       console.error('Error in sendProjectCreationNotifications:', error);
@@ -409,6 +432,7 @@ export class ProjectsService {
       .leftJoinAndSelect('project.utilizationScenarios', 'utilizationScenarios')
       .leftJoinAndSelect('project.assets', 'assets')
       .leftJoinAndSelect('project.reports', 'reports')
+      .leftJoinAndSelect('project.attachments', 'attachments')
       .where('project.id = :id', { id });
 
     // Check permissions - scope by company
@@ -444,14 +468,14 @@ export class ProjectsService {
     }
 
     // Track if status is changing from DRAFT to PENDING
-    const wasInDraft = project.status === ProjectStatus.DRAFT;
+    const waDraft = project.status === ProjectStatus.DRAFT;
     const isChangingToPending =
       updateProjectDto.status === ProjectStatus.PENDING;
 
     Object.assign(project, updateProjectDto);
 
     // Set submitDate when transitioning from DRAFT to PENDING
-    if (wasInDraft && isChangingToPending && !project.submitDate) {
+    if (waDraft && isChangingToPending && !project.submitDate) {
       project.submitDate = new Date();
     }
 
@@ -593,5 +617,232 @@ export class ProjectsService {
       where: { isActive: true },
       order: { name: 'ASC' },
     });
+  }
+
+  /**
+   * Get all ProjectSource entities associated with the current user's projects
+   * Returns only ProjectSource data without associated project details
+   */
+  async getUserProjectSources(
+    userId: string,
+    userRole: UserRole,
+  ): Promise<ProjectSource[]> {
+    const queryBuilder = this.projectSourceRepository
+      .createQueryBuilder('source')
+      .leftJoin('source.project', 'project');
+
+    // Apply role-based filtering based on project relationships
+    if (userRole === UserRole.ADMIN) {
+      // System Admin: See all project sources EXCEPT those from DRAFT projects
+      queryBuilder.where('project.status != :draftStatus', {
+        draftStatus: ProjectStatus.DRAFT,
+      });
+    } else if (userRole === UserRole.CUSTOMER_ADMIN) {
+      // Customer Admin: See all project sources from their company EXCEPT DRAFT
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user && user.companyId) {
+        queryBuilder
+          .where('project.companyId = :companyId', {
+            companyId: user.companyId,
+          })
+          .andWhere('project.status != :draftStatus', {
+            draftStatus: ProjectStatus.DRAFT,
+          });
+      }
+    } else if (userRole === UserRole.CUSTOMER_USER) {
+      // Customer User: See only project sources from their own projects
+      queryBuilder.where('project.createdById = :userId', { userId });
+    } else {
+      // Fallback: if role not recognized, show only user's own project sources
+      queryBuilder.where('project.createdById = :userId', { userId });
+    }
+
+    const sources = await queryBuilder
+      .orderBy('source.createdAt', 'DESC')
+      .getMany();
+
+    return sources;
+  }
+
+  // ========== File Upload Methods ==========
+
+  /**
+   * Save project attachments to filesystem and database
+   */
+  private async saveProjectAttachments(
+    projectId: string,
+    files: Express.Multer.File[],
+    userId: string,
+  ): Promise<ProjectAttachment[]> {
+    // Validate files
+    validateFiles(files);
+
+    // Create project-specific directory
+    const projectDir = path.join(
+      process.cwd(),
+      'uploads',
+      'projects',
+      projectId,
+    );
+    await ensureDirectoryExists(projectDir);
+
+    const attachments: ProjectAttachment[] = [];
+
+    for (const file of files) {
+      try {
+        // Generate unique filename
+        const timestamp = Date.now();
+        const randomSuffix = Math.round(Math.random() * 1e9);
+        const ext = path.extname(file.originalname);
+        const fileName = `${timestamp}-${randomSuffix}${ext}`;
+        const finalPath = path.join(projectDir, fileName);
+
+        // Write file buffer to disk (memory storage provides buffer)
+        await fs.promises.writeFile(finalPath, file.buffer);
+
+        // Create database record
+        const attachment = this.projectAttachmentRepository.create({
+          projectId: projectId,
+          fileName: fileName,
+          originalFileName: file.originalname,
+          fileSize: file.size,
+          filePath: finalPath,
+          fileUrl: `/uploads/projects/${projectId}/${fileName}`,
+          mimeType: file.mimetype,
+          uploadedById: userId,
+        });
+
+        const saved = await this.projectAttachmentRepository.save(attachment);
+        attachments.push(saved);
+      } catch (error) {
+        console.error(`Failed to save file ${file.originalname}:`, error);
+        throw new BadRequestException(
+          `Failed to upload file ${file.originalname}`,
+        );
+      }
+    }
+
+    return attachments;
+  }
+
+  /**
+   * Upload attachments to existing project
+   */
+  async uploadAttachments(
+    projectId: string,
+    files: Express.Multer.File[],
+    userId: string,
+    userRole: UserRole,
+  ): Promise<ProjectAttachment[]> {
+    // Verify project exists and user has access
+    const project = await this.findOne(projectId, userId, userRole);
+
+    if (!project) {
+      throw new NotFoundException('Project not found');
+    }
+
+    // Check if user can upload to this project
+    if (
+      userRole !== UserRole.ADMIN &&
+      project.createdById !== userId &&
+      project.companyId !==
+        (await this.userRepository.findOne({ where: { id: userId } }))
+          ?.companyId
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to upload files to this project',
+      );
+    }
+
+    return this.saveProjectAttachments(projectId, files, userId);
+  }
+
+  /**
+   * Get all attachments for a project
+   */
+  async getProjectAttachments(
+    projectId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<ProjectAttachment[]> {
+    // Verify project exists and user has access
+    await this.findOne(projectId, userId, userRole);
+
+    return this.projectAttachmentRepository.find({
+      where: { projectId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Delete an attachment
+   */
+  async deleteAttachment(
+    projectId: string,
+    attachmentId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<void> {
+    // Verify project exists and user has access
+    const project = await this.findOne(projectId, userId, userRole);
+
+    // Only project creator or admin can delete attachments
+    if (userRole !== UserRole.ADMIN && project.createdById !== userId) {
+      throw new ForbiddenException(
+        'Only the project creator or admin can delete attachments',
+      );
+    }
+
+    const attachment = await this.projectAttachmentRepository.findOne({
+      where: { id: attachmentId, projectId },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    // Delete file from filesystem
+    try {
+      if (fs.existsSync(attachment.filePath)) {
+        await fs.promises.unlink(attachment.filePath);
+      }
+    } catch (error) {
+      console.error(`Failed to delete file from filesystem:`, error);
+      // Continue with database deletion even if file deletion fails
+    }
+
+    // Delete from database
+    await this.projectAttachmentRepository.remove(attachment);
+  }
+
+  /**
+   * Get attachment for download
+   */
+  async getAttachmentForDownload(
+    projectId: string,
+    attachmentId: string,
+    userId: string,
+    userRole: UserRole,
+  ): Promise<{ filePath: string; fileName: string; mimeType: string }> {
+    // Verify project exists and user has access
+    await this.findOne(projectId, userId, userRole);
+
+    const attachment = await this.projectAttachmentRepository.findOne({
+      where: { id: attachmentId, projectId },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    if (!fs.existsSync(attachment.filePath)) {
+      throw new NotFoundException('File not found on server');
+    }
+
+    return {
+      filePath: attachment.filePath,
+      fileName: attachment.originalFileName,
+      mimeType: attachment.mimeType,
+    };
   }
 }

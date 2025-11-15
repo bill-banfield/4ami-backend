@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEmail, IsOptional } from 'class-validator';
+import { IsString, IsEmail, IsOptional, Matches } from 'class-validator';
 
 export class RegisterCompanyDto {
   @ApiProperty({ example: 'ABC Corporation' })
@@ -12,6 +12,9 @@ export class RegisterCompanyDto {
 
   @ApiProperty({ example: '12-3456789' })
   @IsString()
+  @Matches(/^\d{2}-\d{7}$/, {
+    message: 'EIN/Tax ID must follow the format XX-XXXXXXX (e.g., 12-3456789)',
+  })
   einTaxId: string;
 
   @ApiProperty({ example: 'Northeast Branch', required: false })

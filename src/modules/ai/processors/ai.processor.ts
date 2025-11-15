@@ -121,8 +121,8 @@ export class AiProcessor {
   }
 
   private async callAiService(
-    _apiUrl: string,
-    _apiKey: string,
+    apiUrl: string,
+    apiKey: string,
     data: any,
   ): Promise<any> {
     // This would be the actual AI service call
@@ -178,10 +178,10 @@ export class AiProcessor {
     };
   }
 
-  private analyzeValueTrend(_assetData: any): any {
+  private analyzeValueTrend(assetData: any): any {
     return {
       trend: 'stable',
-      projectedValue: _assetData.value * 0.8,
+      projectedValue: assetData.value * 0.8,
       timeframe: '12 months',
     };
   }
@@ -194,11 +194,11 @@ export class AiProcessor {
     ];
   }
 
-  private analyzeDepreciation(_assetData: any): any {
+  private analyzeDepreciation(assetData: any): any {
     return {
       method: 'straight_line',
       annualRate: 0.1,
-      currentValue: _assetData.value * 0.9,
+      currentValue: assetData.value * 0.9,
     };
   }
 
@@ -218,9 +218,9 @@ export class AiProcessor {
     };
   }
 
-  private generateCostInsights(_data: any): any {
+  private generateCostInsights(data: any): any {
     return {
-      totalCost: _data.totalValue || 0,
+      totalCost: data.totalValue || 0,
       optimization: 'Consider bulk purchasing',
       savings: 'Potential 10% savings',
     };

@@ -5,8 +5,34 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { Seeder } from './seeders';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Ensure upload directories exist on startup
+ */
+function ensureUploadDirectories() {
+  const directories = [
+    path.join(process.cwd(), 'uploads'),
+    path.join(process.cwd(), 'uploads', 'projects'),
+    path.join(process.cwd(), 'uploads', 'reports'),
+  ];
+
+  directories.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+        console.log(`✅ Created directory: ${dir}`);
+      } catch (error) {
+        console.error(`❌ Failed to create directory: ${dir}`, error);
+      }
+    }
+  });
+}
 
 async function bootstrap() {
+  // Ensure upload directories exist
+  ensureUploadDirectories();
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
@@ -21,7 +47,7 @@ async function bootstrap() {
 
   // Global class serializer interceptor to handle @Exclude() decorators
   // Note: Applied per endpoint instead of globally to avoid interfering with auth validation
-  // app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get('Reflector')));
+  // app.useGlobalInterceptors(new (app.get('Reflector')));
 
   // CORS configuration
   app.enableCors({
