@@ -18,31 +18,40 @@ export class ProjectTypesService {
     private projectTypeRepository: Repository<ProjectType>,
   ) {}
 
-  async create(createProjectTypeDto: CreateProjectTypeDto): Promise<ProjectType> {
+  async create(
+    createProjectTypeDto: CreateProjectTypeDto,
+  ): Promise<ProjectType> {
     // Check if project type with the same code already exists
     const existingProjectType = await this.projectTypeRepository.findOne({
       where: { code: createProjectTypeDto.code },
     });
 
     if (existingProjectType) {
-      throw new ConflictException(`Project type with code '${createProjectTypeDto.code}' already exists`);
+      throw new ConflictException(
+        `Project type with code '${createProjectTypeDto.code}' already exists`,
+      );
     }
 
     const projectType = this.projectTypeRepository.create(createProjectTypeDto);
     return this.projectTypeRepository.save(projectType);
   }
 
-  async findAll(page: number = 1, limit: number = 10): Promise<{
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
     projectTypes: ProjectType[];
     total: number;
     page: number;
     limit: number;
   }> {
-    const [projectTypes, total] = await this.projectTypeRepository.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { createdAt: 'DESC' },
-    });
+    const [projectTypes, total] = await this.projectTypeRepository.findAndCount(
+      {
+        skip: (page - 1) * limit,
+        take: limit,
+        order: { createdAt: 'DESC' },
+      },
+    );
 
     return {
       projectTypes,
@@ -79,7 +88,10 @@ export class ProjectTypesService {
     return projectType;
   }
 
-  async update(id: string, updateProjectTypeDto: UpdateProjectTypeDto): Promise<ProjectType> {
+  async update(
+    id: string,
+    updateProjectTypeDto: UpdateProjectTypeDto,
+  ): Promise<ProjectType> {
     const projectType = await this.projectTypeRepository.findOne({
       where: { id },
     });
@@ -89,13 +101,18 @@ export class ProjectTypesService {
     }
 
     // If code is being updated, check for conflicts
-    if (updateProjectTypeDto.code && updateProjectTypeDto.code !== projectType.code) {
+    if (
+      updateProjectTypeDto.code &&
+      updateProjectTypeDto.code !== projectType.code
+    ) {
       const existingProjectType = await this.projectTypeRepository.findOne({
         where: { code: updateProjectTypeDto.code },
       });
 
       if (existingProjectType) {
-        throw new ConflictException(`Project type with code '${updateProjectTypeDto.code}' already exists`);
+        throw new ConflictException(
+          `Project type with code '${updateProjectTypeDto.code}' already exists`,
+        );
       }
     }
 
@@ -116,7 +133,7 @@ export class ProjectTypesService {
     // Check if there are projects using this project type
     if (projectType.projects && projectType.projects.length > 0) {
       throw new BadRequestException(
-        `Cannot delete project type. It is currently used by ${projectType.projects.length} project(s)`
+        `Cannot delete project type. It is currently used by ${projectType.projects.length} project(s)`,
       );
     }
 

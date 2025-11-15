@@ -26,33 +26,35 @@ export class AssetProcessor {
   ) {}
 
   @Process('bulk-import')
-  async handleBulkImport(job: Job<{
-    fileBuffer: string;
-    fileName: string;
-    projectId?: string;
-    userId: string;
-    skipDuplicates?: boolean;
-    updateExisting?: boolean;
-  }>) {
+  async handleBulkImport(
+    job: Job<{
+      fileBuffer: string;
+      fileName: string;
+      projectId?: string;
+      userId: string;
+      skipDuplicates?: boolean;
+      updateExisting?: boolean;
+    }>,
+  ) {
     const { fileBuffer, fileName, skipDuplicates = true } = job.data;
-    
+
     console.log(`Starting bulk import job ${job.id} for file: ${fileName}`);
-    
+
     try {
       // Decode base64 buffer back to string
       const csvContent = Buffer.from(fileBuffer, 'base64').toString('utf-8');
-      
+
       const rows: any[] = [];
       const errors: string[] = [];
-      
+
       // Parse CSV from buffer
       await new Promise<void>((resolve, reject) => {
         const stream = Readable.from(csvContent);
         stream
           .pipe(csvParser())
-          .on('data', (row) => rows.push(row))
+          .on('data', row => rows.push(row))
           .on('end', () => resolve())
-          .on('error', (error) => reject(error));
+          .on('error', error => reject(error));
       });
 
       if (rows.length === 0) {
@@ -93,7 +95,8 @@ export class AssetProcessor {
           const modelName = modelField.trim();
 
           // Create or find industry
-          const industry = await this.industriesService.findOrCreate(industryName);
+          const industry =
+            await this.industriesService.findOrCreate(industryName);
 
           // Create or find asset class
           const assetClass = await this.assetClassesService.findOrCreate(
@@ -151,14 +154,15 @@ export class AssetProcessor {
           await this.equipmentRepository.save(equipment);
 
           processed++;
-          
+
           // Log progress every 100 rows
           if (processed % 100 === 0) {
             console.log(`Processed ${processed} rows...`);
           }
         } catch (error) {
           errorCount++;
-          const errorMessage = error instanceof Error ? error.message : 'Failed to process row';
+          const errorMessage =
+            error instanceof Error ? error.message : 'Failed to process row';
           errors.push(`Row ${rowNumber}: ${errorMessage}`);
           console.error(`Error processing row ${rowNumber}:`, errorMessage);
         }
@@ -176,10 +180,10 @@ export class AssetProcessor {
 
       return result;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       console.error(`Bulk import job ${job.id} failed:`, errorMessage);
       throw error;
     }
   }
 }
-

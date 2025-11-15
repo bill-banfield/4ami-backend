@@ -18,7 +18,7 @@ export class ProjectAttachment {
   @Column()
   projectId: string;
 
-  @ManyToOne(() => Project, (project) => project.attachments, {
+  @ManyToOne(() => Project, project => project.attachments, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'projectId' })

@@ -14,18 +14,20 @@ export class EmailService {
     private emailQueue: Queue,
   ) {}
 
-  async sendEmail(sendEmailDto: SendEmailDto): Promise<{ jobId: string; message: string }> {
+  async sendEmail(
+    sendEmailDto: SendEmailDto,
+  ): Promise<{ jobId: string; message: string }> {
     console.log('📧 EmailService.sendEmail called with:', {
       to: sendEmailDto.to,
       subject: sendEmailDto.subject,
       hasText: !!sendEmailDto.text,
       hasHtml: !!sendEmailDto.html,
     });
-    
+
     try {
       const job = await this.emailQueue.add('send-email', sendEmailDto);
       console.log('✅ Email job queued successfully:', job.id);
-      
+
       return {
         jobId: job.id.toString(),
         message: 'Email queued for sending',
@@ -36,28 +38,36 @@ export class EmailService {
     }
   }
 
-  async sendInvitation(sendInvitationDto: SendInvitationDto): Promise<{ jobId: string; message: string }> {
+  async sendInvitation(
+    sendInvitationDto: SendInvitationDto,
+  ): Promise<{ jobId: string; message: string }> {
     const job = await this.emailQueue.add('send-invitation', sendInvitationDto);
-    
+
     return {
       jobId: job.id.toString(),
       message: 'Invitation email queued for sending',
     };
   }
 
-  async sendPasswordReset(email: string, resetToken: string): Promise<{ jobId: string; message: string }> {
+  async sendPasswordReset(
+    email: string,
+    resetToken: string,
+  ): Promise<{ jobId: string; message: string }> {
     const job = await this.emailQueue.add('send-password-reset', {
       email,
       resetToken,
     });
-    
+
     return {
       jobId: job.id.toString(),
       message: 'Password reset email queued for sending',
     };
   }
 
-  async sendEmailVerification(email: string, verificationToken: string): Promise<{ jobId: string; message: string }> {
+  async sendEmailVerification(
+    email: string,
+    verificationToken: string,
+  ): Promise<{ jobId: string; message: string }> {
     const job = await this.emailQueue.add('send-email-verification', {
       email,
       verificationToken,
@@ -69,11 +79,17 @@ export class EmailService {
     };
   }
 
-  async sendCompanyRegistrationNotification(company: Company, customerAdmin: User): Promise<{ jobId: string; message: string }> {
-    const job = await this.emailQueue.add('send-company-registration-notification', {
-      company,
-      customerAdmin,
-    });
+  async sendCompanyRegistrationNotification(
+    company: Company,
+    customerAdmin: User,
+  ): Promise<{ jobId: string; message: string }> {
+    const job = await this.emailQueue.add(
+      'send-company-registration-notification',
+      {
+        company,
+        customerAdmin,
+      },
+    );
 
     return {
       jobId: job.id.toString(),
@@ -81,7 +97,10 @@ export class EmailService {
     };
   }
 
-  async sendUserCredentials(user: User, invitationCode: string): Promise<{ jobId: string; message: string }> {
+  async sendUserCredentials(
+    user: User,
+    invitationCode: string,
+  ): Promise<{ jobId: string; message: string }> {
     const job = await this.emailQueue.add('send-user-credentials', {
       user,
       invitationCode,
@@ -109,13 +128,16 @@ export class EmailService {
       attachmentsCount: attachments?.length || 0,
     });
 
-    const job = await this.emailQueue.add('send-project-creation-notification', {
-      project,
-      creator,
-      company,
-      recipients,
-      attachments: attachments || [],
-    });
+    const job = await this.emailQueue.add(
+      'send-project-creation-notification',
+      {
+        project,
+        creator,
+        company,
+        recipients,
+        attachments: attachments || [],
+      },
+    );
 
     return {
       jobId: job.id.toString(),

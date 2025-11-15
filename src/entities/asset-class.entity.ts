@@ -36,17 +36,17 @@ export class AssetClass {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => Industry, (industry) => industry.assetClasses)
+  @ManyToOne(() => Industry, industry => industry.assetClasses)
   @JoinColumn({ name: 'industryId' })
   industry: Industry;
 
-  @OneToMany(() => Make, (make) => make.assetClass)
+  @OneToMany(() => Make, make => make.assetClass)
   makes: Make[];
 
-  @OneToMany(() => Model, (model) => model.assetClass)
+  @OneToMany(() => Model, model => model.assetClass)
   models: Model[];
 
-  @OneToMany(() => Equipment, (equipment) => equipment.assetClass)
+  @OneToMany(() => Equipment, equipment => equipment.assetClass)
   equipments: Equipment[];
 
   // Normalize name to lowercase before insert/update

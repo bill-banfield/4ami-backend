@@ -17,7 +17,7 @@ export class ProjectTransaction {
   @Column({ unique: true })
   projectId: string;
 
-  @OneToOne(() => Project, (project) => project.transaction)
+  @OneToOne(() => Project, project => project.transaction)
   @JoinColumn({ name: 'projectId' })
   project: Project;
 

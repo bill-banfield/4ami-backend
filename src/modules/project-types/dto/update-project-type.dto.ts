@@ -5,7 +5,7 @@ export class UpdateProjectTypeDto {
   @ApiProperty({
     example: 'residual_analysis',
     description: 'Unique code identifier for the project type',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -14,7 +14,7 @@ export class UpdateProjectTypeDto {
   @ApiProperty({
     example: 'Residual Analysis',
     description: 'Display name of the project type',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -23,7 +23,7 @@ export class UpdateProjectTypeDto {
   @ApiProperty({
     example: 'Asset residual value analysis project for equipment evaluation',
     description: 'Detailed description of the project type',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsString()
@@ -32,7 +32,7 @@ export class UpdateProjectTypeDto {
   @ApiProperty({
     example: true,
     description: 'Whether the project type is active',
-    required: false
+    required: false,
   })
   @IsOptional()
   @IsBoolean()

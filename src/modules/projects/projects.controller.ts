@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
   UseInterceptors,
@@ -32,8 +31,6 @@ import {
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
 import { ProjectStatus } from '../../common/enums/project-status.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../../entities/user.entity';
@@ -46,21 +43,31 @@ export class ProjectsController {
 
   @Get('types')
   @ApiOperation({ summary: 'Get available project types' })
-  @ApiResponse({ status: 200, description: 'Project types retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Project types retrieved successfully',
+  })
   getProjectTypes() {
     return this.projectsService.getProjectTypes();
   }
 
   @Get('sources')
-  @ApiOperation({ summary: 'Get all project sources associated with the current user' })
-  @ApiResponse({ status: 200, description: 'Project sources retrieved successfully' })
+  @ApiOperation({
+    summary: 'Get all project sources associated with the current user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Project sources retrieved successfully',
+  })
   getUserProjectSources(@CurrentUser() user: User) {
     return this.projectsService.getUserProjectSources(user.id, user.role);
   }
 
   @Post()
   @UseInterceptors(FilesInterceptor('files', 10, multerOptions))
-  @ApiOperation({ summary: 'Create a new project with optional file attachments' })
+  @ApiOperation({
+    summary: 'Create a new project with optional file attachments',
+  })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
   create(
     @Body('projectData') projectDataString: string,
@@ -110,12 +117,20 @@ export class ProjectsController {
     @Body() updateProjectDto: UpdateProjectDto,
     @CurrentUser() user: User,
   ) {
-    return this.projectsService.update(id, updateProjectDto, user.id, user.role);
+    return this.projectsService.update(
+      id,
+      updateProjectDto,
+      user.id,
+      user.role,
+    );
   }
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update project status' })
-  @ApiResponse({ status: 200, description: 'Project status updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Project status updated successfully',
+  })
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: ProjectStatus,
@@ -125,8 +140,14 @@ export class ProjectsController {
   }
 
   @Post(':id/submit')
-  @ApiOperation({ summary: 'Submit a draft project (changes status from DRAFT to PENDING and sends notifications)' })
-  @ApiResponse({ status: 200, description: 'Draft project submitted successfully' })
+  @ApiOperation({
+    summary:
+      'Submit a draft project (changes status from DRAFT to PENDING and sends notifications)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Draft project submitted successfully',
+  })
   @ApiResponse({ status: 400, description: 'Project is not in DRAFT status' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   submitDraft(@Param('id') id: string, @CurrentUser() user: User) {
@@ -168,7 +189,10 @@ export class ProjectsController {
 
   @Get(':projectId/attachments')
   @ApiOperation({ summary: 'Get all attachments for a project' })
-  @ApiResponse({ status: 200, description: 'Attachments retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Attachments retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Project not found' })
   getAttachments(
     @Param('projectId') projectId: string,

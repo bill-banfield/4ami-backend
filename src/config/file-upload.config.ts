@@ -22,7 +22,11 @@ export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const MAX_FILES_COUNT = 10;
 
 // File filter to validate MIME types
-export const fileFilter = (req: any, file: Express.Multer.File, callback: any) => {
+export const fileFilter = (
+  req: any,
+  file: Express.Multer.File,
+  callback: any,
+) => {
   if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     callback(null, true);
   } else {

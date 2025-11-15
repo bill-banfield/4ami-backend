@@ -23,7 +23,10 @@ export class EquipmentsService {
     private userRepository: Repository<User>,
   ) {}
 
-  async create(createEquipmentDto: CreateEquipmentDto, userId: string): Promise<Equipment> {
+  async create(
+    createEquipmentDto: CreateEquipmentDto,
+    userId: string,
+  ): Promise<Equipment> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -92,7 +95,11 @@ export class EquipmentsService {
     };
   }
 
-  async findOne(id: number, userId?: string, userRole?: string): Promise<Equipment> {
+  async findOne(
+    id: number,
+    userId?: string,
+    userRole?: string,
+  ): Promise<Equipment> {
     const queryBuilder = this.equipmentRepository
       .createQueryBuilder('equipment')
       .leftJoinAndSelect('equipment.project', 'project')
@@ -145,7 +152,10 @@ export class EquipmentsService {
     await this.equipmentRepository.remove(equipment);
   }
 
-  async getDashboardStats(userId?: string, userRole?: string): Promise<{
+  async getDashboardStats(
+    userId?: string,
+    userRole?: string,
+  ): Promise<{
     totalEquipments: number;
     activeEquipments: number;
     inactiveEquipments: number;
@@ -153,7 +163,8 @@ export class EquipmentsService {
     totalValue: number;
     totalResidualValue: number;
   }> {
-    const queryBuilder = this.equipmentRepository.createQueryBuilder('equipment');
+    const queryBuilder =
+      this.equipmentRepository.createQueryBuilder('equipment');
 
     // Filter by user if not admin
     if (userRole !== 'ADMIN' && userId) {
@@ -168,10 +179,24 @@ export class EquipmentsService {
       valueStats,
     ] = await Promise.all([
       queryBuilder.getCount(),
-      queryBuilder.clone().andWhere('equipment.status = :status', { status: AssetStatus.ACTIVE }).getCount(),
-      queryBuilder.clone().andWhere('equipment.status = :status', { status: AssetStatus.INACTIVE }).getCount(),
-      queryBuilder.clone().andWhere('equipment.status = :status', { status: AssetStatus.ARCHIVED }).getCount(),
-      queryBuilder.clone()
+      queryBuilder
+        .clone()
+        .andWhere('equipment.status = :status', { status: AssetStatus.ACTIVE })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('equipment.status = :status', {
+          status: AssetStatus.INACTIVE,
+        })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('equipment.status = :status', {
+          status: AssetStatus.ARCHIVED,
+        })
+        .getCount(),
+      queryBuilder
+        .clone()
         .select('SUM(equipment.value)', 'totalValue')
         .addSelect('SUM(equipment.residualValue)', 'totalResidualValue')
         .getRawOne(),

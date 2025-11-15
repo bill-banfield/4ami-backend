@@ -30,7 +30,7 @@ export class ResidualForm {
   @Column({ nullable: true })
   assetId: string;
 
-  @ManyToOne(() => Asset, (asset) => asset.residualForms)
+  @ManyToOne(() => Asset, asset => asset.residualForms)
   @JoinColumn({ name: 'assetId' })
   asset: Asset;
 
