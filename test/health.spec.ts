@@ -9,7 +9,7 @@ describe('HealthController', () => {
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
     };
-    
+
     expect(healthStatus.status).toBe('ok');
     expect(healthStatus.timestamp).toBeDefined();
     expect(healthStatus.uptime).toBeGreaterThan(0);
