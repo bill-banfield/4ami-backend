@@ -52,16 +52,40 @@ export class Equipment {
   @Column({ type: 'int', nullable: true })
   yearOfManufacture: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, comment: 'Length in meters' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    comment: 'Length in meters',
+  })
   length: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, comment: 'Width in meters' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    comment: 'Width in meters',
+  })
   width: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, comment: 'Height in meters' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    comment: 'Height in meters',
+  })
   height: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, comment: 'Weight in pounds' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    comment: 'Weight in pounds',
+  })
   weight: number;
 
   @Column({ type: 'text', nullable: true })
@@ -99,19 +123,19 @@ export class Equipment {
   createdBy: User;
 
   // Relations to hierarchical tables
-  @ManyToOne(() => Industry, (industry) => industry.equipments)
+  @ManyToOne(() => Industry, industry => industry.equipments)
   @JoinColumn({ name: 'industryId' })
   industry: Industry;
 
-  @ManyToOne(() => AssetClass, (assetClass) => assetClass.equipments)
+  @ManyToOne(() => AssetClass, assetClass => assetClass.equipments)
   @JoinColumn({ name: 'assetClassId' })
   assetClass: AssetClass;
 
-  @ManyToOne(() => Make, (make) => make.equipments)
+  @ManyToOne(() => Make, make => make.equipments)
   @JoinColumn({ name: 'makeId' })
   make: Make;
 
-  @ManyToOne(() => Model, (model) => model.equipments)
+  @ManyToOne(() => Model, model => model.equipments)
   @JoinColumn({ name: 'modelId' })
   model: Model;
 

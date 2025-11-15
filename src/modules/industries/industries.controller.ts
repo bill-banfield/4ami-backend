@@ -20,9 +20,7 @@ import { IndustriesService } from './industries.service';
 import { CreateIndustryDto } from './dto/create-industry.dto';
 import { UpdateIndustryDto } from './dto/update-industry.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../../entities/user.entity';
+import { Role } from '../../common/enums/user-role.enum';
 
 @ApiTags('Industries')
 @ApiBearerAuth()
@@ -41,7 +39,10 @@ export class IndustriesController {
   @Get()
   @ApiOperation({ summary: 'Get all industries with optional search' })
   @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Industries retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Industries retrieved successfully',
+  })
   findAll(@Query('search') search?: string) {
     return this.industriesService.findAll(search);
   }
@@ -55,7 +56,7 @@ export class IndustriesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update industry' })
   @ApiResponse({ status: 200, description: 'Industry updated successfully' })
   @ApiResponse({ status: 404, description: 'Industry not found' })
@@ -68,7 +69,7 @@ export class IndustriesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete industry' })
   @ApiResponse({ status: 200, description: 'Industry deleted successfully' })
   @ApiResponse({ status: 404, description: 'Industry not found' })

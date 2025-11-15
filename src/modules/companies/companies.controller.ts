@@ -33,10 +33,17 @@ export class CompaniesController {
   @Post('register')
   @Roles(UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Register a new company (Customer Admin only)' })
-  @ApiResponse({ status: 201, description: 'Company registered successfully', type: CompanyResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Company registered successfully',
+    type: CompanyResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiResponse({ status: 409, description: 'User already has a company' })
-  register(@Body() registerCompanyDto: RegisterCompanyDto, @CurrentUser() user: User) {
+  register(
+    @Body() registerCompanyDto: RegisterCompanyDto,
+    @CurrentUser() user: User,
+  ) {
     return this.companiesService.register(registerCompanyDto, user.id);
   }
 
@@ -46,16 +53,17 @@ export class CompaniesController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Companies retrieved successfully' })
-  findAll(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-  ) {
+  findAll(@Query('page') page: number = 1, @Query('limit') limit: number = 10) {
     return this.companiesService.findAll(page, limit);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get company by ID' })
-  @ApiResponse({ status: 200, description: 'Company retrieved successfully', type: CompanyResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Company retrieved successfully',
+    type: CompanyResponseDto,
+  })
   @ApiResponse({ status: 404, description: 'Company not found' })
   findOne(@Param('id') id: string) {
     return this.companiesService.findOne(id);
@@ -63,8 +71,14 @@ export class CompaniesController {
 
   @Patch(':id')
   @Roles(UserRole.CUSTOMER_ADMIN)
-  @ApiOperation({ summary: 'Update company (Customer Admin only - own company)' })
-  @ApiResponse({ status: 200, description: 'Company updated successfully', type: CompanyResponseDto })
+  @ApiOperation({
+    summary: 'Update company (Customer Admin only - own company)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Company updated successfully',
+    type: CompanyResponseDto,
+  })
   @ApiResponse({ status: 400, description: 'Bad request or not authorized' })
   @ApiResponse({ status: 404, description: 'Company not found' })
   update(

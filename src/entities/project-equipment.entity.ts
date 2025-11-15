@@ -19,7 +19,7 @@ export class ProjectEquipment {
   @Column()
   projectId: string;
 
-  @ManyToOne(() => Project, (project) => project.equipments)
+  @ManyToOne(() => Project, project => project.equipments)
   @JoinColumn({ name: 'projectId' })
   project: Project;
 
@@ -53,7 +53,7 @@ export class ProjectEquipment {
   @Column({ type: 'text', nullable: true })
   note: string;
 
-  @OneToMany(() => ProjectUtilizationScenario, (scenario) => scenario.equipment)
+  @OneToMany(() => ProjectUtilizationScenario, scenario => scenario.equipment)
   utilizationScenarios: ProjectUtilizationScenario[];
 
   @CreateDateColumn()

@@ -20,13 +20,14 @@ export class InviteUserDto {
   @IsString()
   title?: string;
 
-  @ApiProperty({ 
-    enum: UserRole, 
+  @ApiProperty({
+    enum: UserRole,
     enumName: 'UserRole',
-    example: UserRole.CUSTOMER_ADMIN
+    example: UserRole.CUSTOMER_ADMIN,
   })
   @IsEnum(UserRole, {
-    message: 'role must be one of the following values: ADMIN, CUSTOMER_ADMIN, CUSTOMER_USER'
+    message:
+      'role must be one of the following values: ADMIN, CUSTOMER_ADMIN, CUSTOMER_USER',
   })
   role: UserRole;
 

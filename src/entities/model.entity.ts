@@ -42,19 +42,19 @@ export class Model {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => Industry, (industry) => industry.models)
+  @ManyToOne(() => Industry, industry => industry.models)
   @JoinColumn({ name: 'industryId' })
   industry: Industry;
 
-  @ManyToOne(() => AssetClass, (assetClass) => assetClass.models)
+  @ManyToOne(() => AssetClass, assetClass => assetClass.models)
   @JoinColumn({ name: 'assetClassId' })
   assetClass: AssetClass;
 
-  @ManyToOne(() => Make, (make) => make.models)
+  @ManyToOne(() => Make, make => make.models)
   @JoinColumn({ name: 'makeId' })
   make: Make;
 
-  @OneToMany(() => Equipment, (equipment) => equipment.model)
+  @OneToMany(() => Equipment, equipment => equipment.model)
   equipments: Equipment[];
 
   // Normalize name to lowercase before insert/update

@@ -19,4 +19,3 @@ export class UserInvitationDetailsDto {
   @ApiProperty({ example: 'How did you hear about us', required: false })
   source?: string;
 }
-

@@ -31,16 +31,16 @@ export class Industry {
   updatedAt: Date;
 
   // Relations
-  @OneToMany(() => AssetClass, (assetClass) => assetClass.industry)
+  @OneToMany(() => AssetClass, assetClass => assetClass.industry)
   assetClasses: AssetClass[];
 
-  @OneToMany(() => Make, (make) => make.industry)
+  @OneToMany(() => Make, make => make.industry)
   makes: Make[];
 
-  @OneToMany(() => Model, (model) => model.industry)
+  @OneToMany(() => Model, model => model.industry)
   models: Model[];
 
-  @OneToMany(() => Equipment, (equipment) => equipment.industry)
+  @OneToMany(() => Equipment, equipment => equipment.industry)
   equipments: Equipment[];
 
   // Normalize name to lowercase before insert/update

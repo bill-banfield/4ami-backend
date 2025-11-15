@@ -1,4 +1,3 @@
-
 import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Injectable } from '@nestjs/common';
@@ -6,6 +5,7 @@ import { Company } from '../../../entities/company.entity';
 import { User } from '../../../entities/user.entity';
 import { EmailProviderFactory } from '../providers/email-provider.factory';
 import { ProjectExcelGenerator } from '../utils/project-excel-generator';
+import * as fs from 'fs';
 
 @Processor('email')
 @Injectable()
@@ -13,14 +13,16 @@ export class EmailProcessor {
   constructor(private emailProviderFactory: EmailProviderFactory) {}
 
   @Process('send-email')
-  async handleSendEmail(job: Job<{
-    to: string;
-    subject: string;
-    text: string;
-    html?: string;
-    cc?: string[];
-    bcc?: string[];
-  }>) {
+  async handleSendEmail(
+    job: Job<{
+      to: string;
+      subject: string;
+      text: string;
+      html?: string;
+      cc?: string[];
+      bcc?: string[];
+    }>,
+  ) {
     const { to, subject, text, html, cc, bcc } = job.data;
 
     try {
@@ -55,20 +57,23 @@ export class EmailProcessor {
   }
 
   @Process('send-invitation')
-  async handleSendInvitation(job: Job<{
-    firstName: string;
-    lastName: string;
-    company: string;
-    email: string;
-    role: string;
-    source: string;
-    invitationCode: string;
-  }>) {
-    const { firstName, lastName, company, email, role, source, invitationCode } = job.data;
+  async handleSendInvitation(
+    job: Job<{
+      firstName: string;
+      lastName: string;
+      company: string;
+      email: string;
+      role: string;
+      source: string;
+      invitationCode: string;
+    }>,
+  ) {
+    const { firstName, lastName, company, email, role, invitationCode } =
+      job.data;
 
     try {
       const invitationUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/customer-signup?token=${invitationCode}&role=${role}`;
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Welcome to 4AMI Platform</h2>
@@ -104,15 +109,17 @@ export class EmailProcessor {
   }
 
   @Process('send-password-reset')
-  async handleSendPasswordReset(job: Job<{
-    email: string;
-    resetToken: string;
-  }>) {
+  async handleSendPasswordReset(
+    job: Job<{
+      email: string;
+      resetToken: string;
+    }>,
+  ) {
     const { email, resetToken } = job.data;
 
     try {
       const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Password Reset Request</h2>
@@ -147,15 +154,17 @@ export class EmailProcessor {
   }
 
   @Process('send-email-verification')
-  async handleSendEmailVerification(job: Job<{
-    email: string;
-    verificationToken: string;
-  }>) {
+  async handleSendEmailVerification(
+    job: Job<{
+      email: string;
+      verificationToken: string;
+    }>,
+  ) {
     const { email, verificationToken } = job.data;
 
     try {
       const verificationUrl = `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/v1/auth/verify-email/${verificationToken}`;
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Email Verification</h2>
@@ -188,15 +197,18 @@ export class EmailProcessor {
   }
 
   @Process('send-company-registration-notification')
-  async handleSendCompanyRegistrationNotification(job: Job<{
-    company: Company;
-    customerAdmin: User;
-  }>) {
+  async handleSendCompanyRegistrationNotification(
+    job: Job<{
+      company: Company;
+      customerAdmin: User;
+    }>,
+  ) {
     const { company, customerAdmin } = job.data;
 
     try {
       // Get system admin email from environment or use default
-      const systemAdminEmail = process.env.SYSTEM_ADMIN_EMAIL || 'admin@4ami.com';
+      const systemAdminEmail =
+        process.env.SYSTEM_ADMIN_EMAIL || 'admin@4ami.com';
 
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -239,10 +251,14 @@ export class EmailProcessor {
       });
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send company registration notification');
+        throw new Error(
+          result.error || 'Failed to send company registration notification',
+        );
       }
 
-      console.log(`Company registration notification sent successfully to ${systemAdminEmail}`);
+      console.log(
+        `Company registration notification sent successfully to ${systemAdminEmail}`,
+      );
       return { success: true, systemAdminEmail };
     } catch (error) {
       console.error(`Failed to send company registration notification:`, error);
@@ -251,10 +267,12 @@ export class EmailProcessor {
   }
 
   @Process('send-user-credentials')
-  async handleSendUserCredentials(job: Job<{
-    user: User;
-    invitationCode: string;
-  }>) {
+  async handleSendUserCredentials(
+    job: Job<{
+      user: User;
+      invitationCode: string;
+    }>,
+  ) {
     const { user, invitationCode } = job.data;
 
     try {
@@ -290,26 +308,39 @@ export class EmailProcessor {
       });
 
       if (!result.success) {
-        throw new Error(result.error || 'Failed to send user credentials email');
+        throw new Error(
+          result.error || 'Failed to send user credentials email',
+        );
       }
 
       console.log(`User credentials email sent successfully to ${user.email}`);
       return { success: true, email: user.email };
     } catch (error) {
-      console.error(`Failed to send user credentials email to ${user.email}:`, error);
+      console.error(
+        `Failed to send user credentials email to ${user.email}:`,
+        error,
+      );
       throw error;
     }
   }
 
   @Process('send-project-creation-notification')
-  async handleSendProjectCreationNotification(job: Job<{
-    project: any;
-    creator: User;
-    company: Company;
-    recipients: string[];
-    attachments?: any[];
-  }>) {
-    const { project, creator, company, recipients, attachments = [] } = job.data;
+  async handleSendProjectCreationNotification(
+    job: Job<{
+      project: any;
+      creator: User;
+      company: Company;
+      recipients: string[];
+      attachments?: any[];
+    }>,
+  ) {
+    const {
+      project,
+      creator,
+      company,
+      recipients,
+      attachments = [],
+    } = job.data;
 
     try {
       const projectUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/projects/${project.id}`;
@@ -368,7 +399,11 @@ export class EmailProcessor {
       `;
 
       // Generate Excel attachment
-      const excelBuffer = await ProjectExcelGenerator.generateProjectExcel(project, creator, company);
+      const excelBuffer = await ProjectExcelGenerator.generateProjectExcel(
+        project,
+        creator,
+        company,
+      );
       const excelFileName = `Project_${project.projectNumber}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
       // Prepare email attachments array (Excel + uploaded files)
@@ -376,20 +411,22 @@ export class EmailProcessor {
         {
           filename: excelFileName,
           content: excelBuffer,
-          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          contentType:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         },
       ];
 
       // Add uploaded file attachments if available
-      const fs = require('fs');
-      const path = require('path');
 
       for (const attachment of attachments) {
         try {
-          console.log(`📄 Reading attachment: ${attachment.originalFileName} from ${attachment.filePath}`);
+          console.log(
+            `📄 Reading attachment: ${attachment.originalFileName} from ${attachment.filePath}`,
+          );
 
           // Check if file exists
-          const fileExists = await fs.promises.access(attachment.filePath, fs.constants.F_OK)
+          const fileExists = await fs.promises
+            .access(attachment.filePath, fs.constants.F_OK)
             .then(() => true)
             .catch(() => false);
 
@@ -400,7 +437,9 @@ export class EmailProcessor {
 
           // Read file from disk
           const fileBuffer = await fs.promises.readFile(attachment.filePath);
-          console.log(`✅ Read ${attachment.originalFileName}: ${(fileBuffer.length / 1024).toFixed(2)} KB`);
+          console.log(
+            `✅ Read ${attachment.originalFileName}: ${(fileBuffer.length / 1024).toFixed(2)} KB`,
+          );
 
           emailAttachments.push({
             filename: attachment.originalFileName,
@@ -408,21 +447,31 @@ export class EmailProcessor {
             // Note: contentType is not needed for Resend, it will auto-detect
           });
         } catch (fileError) {
-          console.error(`❌ Failed to read attachment file ${attachment.originalFileName}:`, fileError);
+          console.error(
+            `❌ Failed to read attachment file ${attachment.originalFileName}:`,
+            fileError,
+          );
           // Continue with other attachments even if one fails
         }
       }
 
       // Calculate total email size
-      const totalSize = emailAttachments.reduce((sum, att) => sum + att.content.length, 0);
+      const totalSize = emailAttachments.reduce(
+        (sum, att) => sum + att.content.length,
+        0,
+      );
       const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
 
-      console.log(`📎 Prepared ${emailAttachments.length} attachments (1 Excel + ${attachments.length} uploaded files)`);
+      console.log(
+        `📎 Prepared ${emailAttachments.length} attachments (1 Excel + ${attachments.length} uploaded files)`,
+      );
       console.log(`📊 Total email size: ${totalSizeMB} MB`);
 
       // Resend has a 40MB limit
       if (totalSize > 40 * 1024 * 1024) {
-        console.warn(`⚠️ WARNING: Total email size (${totalSizeMB} MB) exceeds Resend's 40MB limit!`);
+        console.warn(
+          `⚠️ WARNING: Total email size (${totalSizeMB} MB) exceeds Resend's 40MB limit!`,
+        );
       }
 
       // Send to all recipients
@@ -433,7 +482,7 @@ export class EmailProcessor {
           subject: `New Project Created: ${project.name} (${project.projectNumber})`,
           html,
           attachments: emailAttachments,
-        })
+        }),
       );
 
       const results = await Promise.all(emailPromises);
@@ -444,8 +493,15 @@ export class EmailProcessor {
         throw new Error(`Failed to send ${failedEmails.length} emails`);
       }
 
-      console.log(`✅ Project creation notifications sent successfully to ${recipients.length} recipients with ${emailAttachments.length} attachment(s)`);
-      return { success: true, recipients, projectId: project.id, attachmentsCount: emailAttachments.length };
+      console.log(
+        `✅ Project creation notifications sent successfully to ${recipients.length} recipients with ${emailAttachments.length} attachment(s)`,
+      );
+      return {
+        success: true,
+        recipients,
+        projectId: project.id,
+        attachmentsCount: emailAttachments.length,
+      };
     } catch (error) {
       console.error(`❌ Failed to send project creation notifications:`, error);
       throw error;

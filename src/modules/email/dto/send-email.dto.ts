@@ -14,7 +14,10 @@ export class SendEmailDto {
   @IsString()
   text: string;
 
-  @ApiProperty({ example: '<h1>Welcome to our platform!</h1>', required: false })
+  @ApiProperty({
+    example: '<h1>Welcome to our platform!</h1>',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   html?: string;

@@ -20,9 +20,7 @@ import { AssetClassesService } from './asset-classes.service';
 import { CreateAssetClassDto } from './dto/create-asset-class.dto';
 import { UpdateAssetClassDto } from './dto/update-asset-class.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../../entities/user.entity';
+import { Role } from '../../common/enums/user-role.enum';
 
 @ApiTags('Asset Classes')
 @ApiBearerAuth()
@@ -42,7 +40,10 @@ export class AssetClassesController {
   @ApiOperation({ summary: 'Get all asset classes with optional filters' })
   @ApiQuery({ name: 'industryId', required: false, type: Number })
   @ApiQuery({ name: 'search', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Asset classes retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Asset classes retrieved successfully',
+  })
   findAll(
     @Query('industryId') industryId?: string,
     @Query('search') search?: string,
@@ -53,14 +54,17 @@ export class AssetClassesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get asset class by ID' })
-  @ApiResponse({ status: 200, description: 'Asset class retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Asset class retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Asset class not found' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.assetClassesService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update asset class' })
   @ApiResponse({ status: 200, description: 'Asset class updated successfully' })
   @ApiResponse({ status: 404, description: 'Asset class not found' })
@@ -73,7 +77,7 @@ export class AssetClassesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete asset class' })
   @ApiResponse({ status: 200, description: 'Asset class deleted successfully' })
   @ApiResponse({ status: 404, description: 'Asset class not found' })

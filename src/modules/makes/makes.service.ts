@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Make } from '../../entities/make.entity';
@@ -34,7 +38,11 @@ export class MakesService {
     return await this.makeRepo.save(make);
   }
 
-  async findAll(industryId?: number, assetClassId?: number, search?: string): Promise<Make[]> {
+  async findAll(
+    industryId?: number,
+    assetClassId?: number,
+    search?: string,
+  ): Promise<Make[]> {
     const where: any = {};
 
     if (industryId) {
@@ -70,7 +78,11 @@ export class MakesService {
     return make;
   }
 
-  async findOrCreate(industryId: number, assetClassId: number, name: string): Promise<Make> {
+  async findOrCreate(
+    industryId: number,
+    assetClassId: number,
+    name: string,
+  ): Promise<Make> {
     const normalizedName = name.toLowerCase().trim();
 
     let make = await this.makeRepo.findOne({

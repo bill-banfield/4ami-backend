@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, IsObject, IsUUID, IsEnum, IsInt } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsObject,
+  IsUUID,
+  IsEnum,
+  IsInt,
+} from 'class-validator';
 import { AssetStatus } from '../../../common/enums/asset-status.enum';
 
 export class CreateEquipmentDto {
@@ -21,11 +29,17 @@ export class CreateEquipmentDto {
   modelId: number;
 
   // Hierarchical classification - Names (for denormalization)
-  @ApiProperty({ example: 'construction', description: 'Industry name (lowercase)' })
+  @ApiProperty({
+    example: 'construction',
+    description: 'Industry name (lowercase)',
+  })
   @IsString()
   industryName: string;
 
-  @ApiProperty({ example: 'excavator', description: 'Asset class name (lowercase)' })
+  @ApiProperty({
+    example: 'excavator',
+    description: 'Asset class name (lowercase)',
+  })
   @IsString()
   assetClassName: string;
 
@@ -43,22 +57,38 @@ export class CreateEquipmentDto {
   @IsInt()
   yearOfManufacture?: number;
 
-  @ApiProperty({ example: 10.5, description: 'Length in meters', required: false })
+  @ApiProperty({
+    example: 10.5,
+    description: 'Length in meters',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   length?: number;
 
-  @ApiProperty({ example: 3.5, description: 'Width in meters', required: false })
+  @ApiProperty({
+    example: 3.5,
+    description: 'Width in meters',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   width?: number;
 
-  @ApiProperty({ example: 3.8, description: 'Height in meters', required: false })
+  @ApiProperty({
+    example: 3.8,
+    description: 'Height in meters',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   height?: number;
 
-  @ApiProperty({ example: 5000, description: 'Weight in pounds', required: false })
+  @ApiProperty({
+    example: 5000,
+    description: 'Weight in pounds',
+    required: false,
+  })
   @IsOptional()
   @IsNumber()
   weight?: number;
@@ -69,12 +99,12 @@ export class CreateEquipmentDto {
   specialTransportationConsideration?: string;
 
   // Financial data
-  @ApiProperty({ example: 150000.00, required: false })
+  @ApiProperty({ example: 150000.0, required: false })
   @IsOptional()
   @IsNumber()
   value?: number;
 
-  @ApiProperty({ example: 30000.00, required: false })
+  @ApiProperty({ example: 30000.0, required: false })
   @IsOptional()
   @IsNumber()
   residualValue?: number;
@@ -84,12 +114,18 @@ export class CreateEquipmentDto {
   @IsEnum(AssetStatus)
   status?: AssetStatus;
 
-  @ApiProperty({ example: { notes: 'Additional information' }, required: false })
+  @ApiProperty({
+    example: { notes: 'Additional information' },
+    required: false,
+  })
   @IsOptional()
   @IsObject()
   metadata?: Record<string, any>;
 
-  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000', required: false })
+  @ApiProperty({
+    example: '123e4567-e89b-12d3-a456-426614174000',
+    required: false,
+  })
   @IsOptional()
   @IsUUID()
   projectId?: string;

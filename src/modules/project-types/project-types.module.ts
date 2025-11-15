@@ -6,9 +6,7 @@ import { ProjectTypesController } from './project-types.controller';
 import { ProjectType } from '../../entities/project-type.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([ProjectType]),
-  ],
+  imports: [TypeOrmModule.forFeature([ProjectType])],
   providers: [ProjectTypesService],
   controllers: [ProjectTypesController],
   exports: [ProjectTypesService],

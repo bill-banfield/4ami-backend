@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { AssetClass } from '../../entities/asset-class.entity';
@@ -86,7 +90,10 @@ export class AssetClassesService {
     return assetClass;
   }
 
-  async update(id: number, updateAssetClassDto: UpdateAssetClassDto): Promise<AssetClass> {
+  async update(
+    id: number,
+    updateAssetClassDto: UpdateAssetClassDto,
+  ): Promise<AssetClass> {
     const assetClass = await this.findOne(id);
 
     // If updating name, check for duplicates
