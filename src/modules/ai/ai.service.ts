@@ -16,26 +16,39 @@ export class AiService {
   async processResidualAnalysis(
     processResidualAnalysisDto: ProcessResidualAnalysisDto,
   ): Promise<{ jobId: string; message: string }> {
-    const job = await this.aiProcessingQueue.add('process-residual-analysis', processResidualAnalysisDto);
-    
+    const job = await this.aiProcessingQueue.add(
+      'process-residual-analysis',
+      processResidualAnalysisDto,
+    );
+
     return {
       jobId: job.id.toString(),
       message: 'Residual analysis processing started',
     };
   }
 
-  async analyzeAssetData(assetData: any): Promise<{ jobId: string; message: string }> {
-    const job = await this.aiProcessingQueue.add('analyze-asset-data', { assetData });
-    
+  async analyzeAssetData(
+    assetData: any,
+  ): Promise<{ jobId: string; message: string }> {
+    const job = await this.aiProcessingQueue.add('analyze-asset-data', {
+      assetData,
+    });
+
     return {
       jobId: job.id.toString(),
       message: 'Asset data analysis started',
     };
   }
 
-  async generateInsights(projectId: string, data: any): Promise<{ jobId: string; message: string }> {
-    const job = await this.aiProcessingQueue.add('generate-insights', { projectId, data });
-    
+  async generateInsights(
+    projectId: string,
+    data: any,
+  ): Promise<{ jobId: string; message: string }> {
+    const job = await this.aiProcessingQueue.add('generate-insights', {
+      projectId,
+      data,
+    });
+
     return {
       jobId: job.id.toString(),
       message: 'Insights generation started',
@@ -44,7 +57,7 @@ export class AiService {
 
   async getJobStatus(jobId: string): Promise<any> {
     const job = await this.aiProcessingQueue.getJob(jobId);
-    
+
     if (!job) {
       return { status: 'not_found' };
     }

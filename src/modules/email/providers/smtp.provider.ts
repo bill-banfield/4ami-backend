@@ -1,6 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
-import { IEmailProvider, EmailOptions, EmailResponse } from '../interfaces/email-provider.interface';
+import {
+  IEmailProvider,
+  EmailOptions,
+  EmailResponse,
+} from '../interfaces/email-provider.interface';
 
 @Injectable()
 export class SmtpEmailProvider implements IEmailProvider {
@@ -37,7 +41,10 @@ export class SmtpEmailProvider implements IEmailProvider {
         success: true,
       };
     } catch (error) {
-      this.logger.error(`Error sending email via SMTP: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error sending email via SMTP: ${error.message}`,
+        error.stack,
+      );
       return {
         success: false,
         error: error.message,

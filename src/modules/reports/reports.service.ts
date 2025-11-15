@@ -32,7 +32,10 @@ export class ReportsService {
     private reportGenerationQueue: Queue,
   ) {}
 
-  async create(createReportDto: CreateReportDto, userId: string): Promise<Report> {
+  async create(
+    createReportDto: CreateReportDto,
+    userId: string,
+  ): Promise<Report> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -105,7 +108,11 @@ export class ReportsService {
     };
   }
 
-  async findOne(id: string, userId?: string, userRole?: string): Promise<Report> {
+  async findOne(
+    id: string,
+    userId?: string,
+    userRole?: string,
+  ): Promise<Report> {
     const queryBuilder = this.reportRepository
       .createQueryBuilder('report')
       .leftJoinAndSelect('report.project', 'project')
@@ -194,7 +201,10 @@ export class ReportsService {
     };
   }
 
-  async getDashboardStats(userId?: string, userRole?: string): Promise<{
+  async getDashboardStats(
+    userId?: string,
+    userRole?: string,
+  ): Promise<{
     totalReports: number;
     generatingReports: number;
     completedReports: number;
@@ -207,17 +217,26 @@ export class ReportsService {
       queryBuilder.where('report.generatedById = :userId', { userId });
     }
 
-    const [
-      totalReports,
-      generatingReports,
-      completedReports,
-      failedReports,
-    ] = await Promise.all([
-      queryBuilder.getCount(),
-      queryBuilder.clone().andWhere('report.status = :status', { status: ReportStatus.GENERATING }).getCount(),
-      queryBuilder.clone().andWhere('report.status = :status', { status: ReportStatus.COMPLETED }).getCount(),
-      queryBuilder.clone().andWhere('report.status = :status', { status: ReportStatus.FAILED }).getCount(),
-    ]);
+    const [totalReports, generatingReports, completedReports, failedReports] =
+      await Promise.all([
+        queryBuilder.getCount(),
+        queryBuilder
+          .clone()
+          .andWhere('report.status = :status', {
+            status: ReportStatus.GENERATING,
+          })
+          .getCount(),
+        queryBuilder
+          .clone()
+          .andWhere('report.status = :status', {
+            status: ReportStatus.COMPLETED,
+          })
+          .getCount(),
+        queryBuilder
+          .clone()
+          .andWhere('report.status = :status', { status: ReportStatus.FAILED })
+          .getCount(),
+      ]);
 
     return {
       totalReports,
@@ -227,7 +246,11 @@ export class ReportsService {
     };
   }
 
-  async downloadReport(id: string, userId: string, userRole?: string): Promise<{
+  async downloadReport(
+    id: string,
+    userId: string,
+    userRole?: string,
+  ): Promise<{
     filePath: string;
     fileName: string;
     mimeType: string;
@@ -249,7 +272,11 @@ export class ReportsService {
     };
   }
 
-  async getReportData(id: string, userId: string, userRole?: string): Promise<any> {
+  async getReportData(
+    id: string,
+    userId: string,
+    userRole?: string,
+  ): Promise<any> {
     const report = await this.findOne(id, userId, userRole);
     return report.data;
   }

@@ -20,9 +20,7 @@ import { MakesService } from './makes.service';
 import { CreateMakeDto } from './dto/create-make.dto';
 import { UpdateMakeDto } from './dto/update-make.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../../entities/user.entity';
+import { Role } from '../../common/enums/user-role.enum';
 
 @ApiTags('Makes')
 @ApiBearerAuth()
@@ -50,8 +48,14 @@ export class MakesController {
     @Query('search') search?: string,
   ) {
     const parsedIndustryId = industryId ? parseInt(industryId, 10) : undefined;
-    const parsedAssetClassId = assetClassId ? parseInt(assetClassId, 10) : undefined;
-    return this.makesService.findAll(parsedIndustryId, parsedAssetClassId, search);
+    const parsedAssetClassId = assetClassId
+      ? parseInt(assetClassId, 10)
+      : undefined;
+    return this.makesService.findAll(
+      parsedIndustryId,
+      parsedAssetClassId,
+      search,
+    );
   }
 
   @Get(':id')
@@ -63,7 +67,7 @@ export class MakesController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update make' })
   @ApiResponse({ status: 200, description: 'Make updated successfully' })
   @ApiResponse({ status: 404, description: 'Make not found' })
@@ -76,7 +80,7 @@ export class MakesController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete make' })
   @ApiResponse({ status: 200, description: 'Make deleted successfully' })
   @ApiResponse({ status: 404, description: 'Make not found' })

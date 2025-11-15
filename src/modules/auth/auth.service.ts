@@ -1,16 +1,22 @@
-import {BadRequestException, ConflictException, Injectable, UnauthorizedException,} from '@nestjs/common';
-import {JwtService} from '@nestjs/jwt';
-import {InjectRepository} from '@nestjs/typeorm';
-import {Repository} from 'typeorm';
-import {v4 as uuidv4} from 'uuid';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
+import * as bcrypt from 'bcryptjs';
 
-import {User} from '../../entities/user.entity';
-import {UserRole} from '../../common/enums/user-role.enum';
-import {SignUpDto} from './dto/signup.dto';
-import {CustomerSignupDto} from './dto/customer-signup.dto';
-import {AuthResponseDto} from './dto/auth-response.dto';
-import {JwtPayload} from './interfaces/jwt-payload.interface';
-import {EmailService} from '../email/email.service';
+import { User } from '../../entities/user.entity';
+import { UserRole } from '../../common/enums/user-role.enum';
+import { SignUpDto } from './dto/signup.dto';
+import { CustomerSignupDto } from './dto/customer-signup.dto';
+import { AuthResponseDto } from './dto/auth-response.dto';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -44,7 +50,7 @@ export class AuthService {
     });
 
     const savedUser = await this.userRepository.save(user);
-    
+
     // Send email verification
     try {
       await this.emailService.sendEmailVerification(
@@ -61,18 +67,20 @@ export class AuthService {
     return { user: savedUser, token };
   }
 
-  async customerSignUp(customerSignupDto: CustomerSignupDto): Promise<AuthResponseDto> {
-    const { 
-      email, 
-      password, 
-      confirmPassword, 
-      firstName, 
-      lastName, 
-      title, 
-      company, 
-      phone, 
-      source, 
-      role, 
+  async customerSignUp(
+    customerSignupDto: CustomerSignupDto,
+  ): Promise<AuthResponseDto> {
+    const {
+      email,
+      password,
+      confirmPassword,
+      firstName,
+      lastName,
+      title,
+      company,
+      phone,
+      source,
+      role,
       invitationCode,
       agreeToTerms,
     } = customerSignupDto;
@@ -84,7 +92,9 @@ export class AuthService {
 
     // Validate terms agreement
     if (agreeToTerms !== 'true') {
-      throw new BadRequestException('You must agree to the terms and conditions');
+      throw new BadRequestException(
+        'You must agree to the terms and conditions',
+      );
     }
 
     // Find user by invitation code
@@ -145,11 +155,11 @@ export class AuthService {
     console.log('🔍 Validating user:', email);
 
     console.log('🔍 Password:', password);
-    
+
     // Use raw query to completely bypass any decorator interference
     const result = await this.userRepository.query(
       'SELECT * FROM users WHERE email = $1',
-      [email]
+      [email],
     );
 
     console.log('📊 Query result length:', result.length);
@@ -160,25 +170,29 @@ export class AuthService {
     }
 
     const userData = result[0];
-    console.log('👤 User found:', userData.email, 'Password hash exists:', !!userData.password);
-    
+    console.log(
+      '👤 User found:',
+      userData.email,
+      'Password hash exists:',
+      !!userData.password,
+    );
+
     // Check if user has a password set
     if (!userData.password) {
       console.log('❌ User has no password set');
       return null;
     }
-    
+
     // Validate password using bcrypt directly
-    const bcrypt = require('bcryptjs');
     const isValidPassword = await bcrypt.compare(password, userData.password);
-    
+
     console.log('🔐 Password validation result:', isValidPassword);
-    
+
     if (!isValidPassword) {
       console.log('❌ Invalid password');
       return null;
     }
-    
+
     // Create User object manually to avoid any decorator issues
     const user = new User();
     user.id = userData.id;
@@ -222,12 +236,14 @@ export class AuthService {
       where: {
         email,
         emailVerificationToken: token,
-        isEmailVerified: false
+        isEmailVerified: false,
       },
     });
 
     if (!user) {
-      throw new ConflictException('Email and verification token do not match or user is already verified');
+      throw new ConflictException(
+        'Email and verification token do not match or user is already verified',
+      );
     }
 
     // Use update query to avoid triggering BeforeUpdate hooks
@@ -246,7 +262,9 @@ export class AuthService {
 
     if (user && user.isEmailVerified) {
       // Use update query to avoid triggering BeforeUpdate hooks
-      await this.userRepository.update(user.id, { emailVerificationToken: null });
+      await this.userRepository.update(user.id, {
+        emailVerificationToken: null,
+      });
     }
   }
 
@@ -279,7 +297,7 @@ export class AuthService {
     // Use update query to avoid triggering BeforeUpdate hooks
     await this.userRepository.update(user.id, {
       passwordResetToken: resetToken,
-      passwordResetExpires: resetExpires
+      passwordResetExpires: resetExpires,
     });
 
     // Send password reset email
@@ -309,7 +327,6 @@ export class AuthService {
   }
 
   private async hashPassword(password: string): Promise<string> {
-    const bcrypt = require('bcryptjs');
     const saltRounds = 10;
     return bcrypt.hash(password, saltRounds);
   }

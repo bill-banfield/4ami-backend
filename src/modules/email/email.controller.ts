@@ -1,5 +1,10 @@
 import { Controller, Post, Body, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 import { EmailService } from './email.service';
 import { SendEmailDto } from './dto/send-email.dto';
@@ -24,7 +29,10 @@ export class EmailController {
   @Post('invitation')
   @Roles(UserRole.ADMIN, UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Send user invitation email' })
-  @ApiResponse({ status: 201, description: 'Invitation email queued for sending' })
+  @ApiResponse({
+    status: 201,
+    description: 'Invitation email queued for sending',
+  })
   sendInvitation(@Body() sendInvitationDto: SendInvitationDto) {
     return this.emailService.sendInvitation(sendInvitationDto);
   }
@@ -40,9 +48,17 @@ export class EmailController {
         text: 'This is a test email to verify email service is working.',
         html: '<h1>Test Email</h1><p>This is a test email to verify email service is working.</p>',
       });
-      return { success: true, message: 'Test email queued successfully', result };
+      return {
+        success: true,
+        message: 'Test email queued successfully',
+        result,
+      };
     } catch (error) {
-      return { success: false, message: 'Test email failed', error: error.message };
+      return {
+        success: false,
+        message: 'Test email failed',
+        error: error.message,
+      };
     }
   }
 }
