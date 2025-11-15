@@ -25,6 +25,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserVerificationResponseDto } from './dto/user-verification-response.dto';
+import { UserInvitationDetailsDto } from './dto/user-invitation-details.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -87,6 +88,42 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Dashboard stats retrieved' })
   getDashboardStats() {
     return this.usersService.getDashboardStats();
+  }
+
+  @Get('invitation')
+  @Public()
+  @ApiOperation({ summary: 'Get user details by invitation code' })
+  @ApiQuery({ name: 'invitationCode', required: true, type: String })
+  @ApiResponse({
+    status: 200,
+    description: 'User details retrieved successfully',
+    type: UserInvitationDetailsDto,
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 400, description: 'Invitation code is required' })
+  async getUserByInvitationCode(
+    @Query('invitationCode') invitationCode: string,
+  ): Promise<UserInvitationDetailsDto> {
+    if (!invitationCode) {
+      throw new NotFoundException('Invitation code is required');
+    }
+
+    const user = await this.usersService.findByInvitationCode(invitationCode);
+    if (!user) {
+      throw new NotFoundException(
+        'User not found with the provided invitation code',
+      );
+    }
+
+    // Return only the specified fields for security
+    return {
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      title: user.title,
+      companyName: user.companyName,
+      source: user.source,
+    };
   }
 
   @Get(':id')

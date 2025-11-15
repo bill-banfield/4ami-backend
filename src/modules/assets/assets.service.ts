@@ -1,6 +1,7 @@
 import {
   Injectable,
   NotFoundException,
+  BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -150,11 +151,22 @@ export class AssetsService {
 
   async bulkImport(
     bulkImportDto: BulkImportDto,
+    file: Express.Multer.File,
     userId: string,
   ): Promise<{ jobId: string; message: string }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    // Validate file
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+
+    // Validate file type
+    if (!file.originalname.toLowerCase().endsWith('.csv')) {
+      throw new BadRequestException('Only CSV files are accepted');
     }
 
     // Validate project if provided
@@ -167,15 +179,19 @@ export class AssetsService {
       }
     }
 
-    // Add job to queue
+    // Enqueue job for async processing
     const job = await this.assetImportQueue.add('bulk-import', {
-      ...bulkImportDto,
+      fileBuffer: file.buffer.toString('base64'), // Convert buffer to base64 for serialization
+      fileName: file.originalname,
+      projectId: bulkImportDto.projectId,
+      skipDuplicates: bulkImportDto.skipDuplicates ?? true,
+      updateExisting: bulkImportDto.updateExisting ?? false,
       userId,
     });
 
     return {
       jobId: job.id.toString(),
-      message: 'Bulk import job started',
+      message: 'Bulk import job enqueued for processing',
     };
   }
 

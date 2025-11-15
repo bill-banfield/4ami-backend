@@ -120,15 +120,37 @@ export class AssetsController {
   }
 
   @Post('bulk-import')
-  @ApiOperation({ summary: 'Bulk import assets from CSV' })
+  @ApiOperation({
+    summary:
+      'Bulk import industries, asset classes, makes, models, and equipment records from CSV',
+    description:
+      'Accepts CSV with headers: Industry, Asset Class, Make, Model. Creates hierarchical entities and equipment records retrievable via GET /equipments endpoint.',
+  })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ status: 201, description: 'Bulk import job started' })
+  @ApiResponse({
+    status: 201,
+    description: 'Bulk import job enqueued for asynchronous processing',
+    schema: {
+      type: 'object',
+      properties: {
+        jobId: {
+          type: 'string',
+          description: 'Bull queue job ID for tracking',
+        },
+        message: { type: 'string', description: 'Status message' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid file or missing required fields',
+  })
   @UseInterceptors(FileInterceptor('file'))
   bulkImport(
     @Body() bulkImportDto: BulkImportDto,
     @UploadedFile() file: Express.Multer.File,
     @CurrentUser() user: User,
   ) {
-    return this.assetsService.bulkImport(bulkImportDto, user.id);
+    return this.assetsService.bulkImport(bulkImportDto, file, user.id);
   }
 }

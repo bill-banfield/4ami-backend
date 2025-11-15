@@ -167,6 +167,12 @@ export class UsersService {
     });
   }
 
+  async findByInvitationCode(invitationCode: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { emailVerificationToken: invitationCode },
+    });
+  }
+
   async findByEmailVerificationTokenOrEmail(
     token: string,
     email?: string,
@@ -189,7 +195,7 @@ export class UsersService {
 
   async findUserForVerification(token: string): Promise<User | null> {
     // First try to find by verification token (for unverified users)
-    let user = await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: { emailVerificationToken: token },
     });
 
@@ -273,6 +279,7 @@ export class UsersService {
       email,
       firstName,
       lastName,
+      title,
       role,
       invitationCode,
       company: companyName,
@@ -308,6 +315,7 @@ export class UsersService {
       email,
       firstName,
       lastName,
+      title,
       role: role || UserRole.CUSTOMER_USER,
       companyName,
       source,
