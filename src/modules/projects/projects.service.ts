@@ -1,10 +1,10 @@
 import {
-  jectable,
+  Injectable,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { jectRepository } from '@nestjs/typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Project } from '../../entities/project.entity';
@@ -27,30 +27,30 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { validateFiles, ensureDirectoryExists } from '../../utils/file.utils';
 
-@jectable()
+@Injectable()
 export class ProjectsService {
   constructor(
-    @jectRepository(Project)
+    @InjectRepository(Project)
     private projectRepository: Repository<Project>,
-    @jectRepository(User)
+    @InjectRepository(User)
     private userRepository: Repository<User>,
-    @jectRepository(Company)
+    @InjectRepository(Company)
     private companyRepository: Repository<Company>,
-    @jectRepository(ProjectType)
+    @InjectRepository(ProjectType)
     private projectTypeRepository: Repository<ProjectType>,
-    @jectRepository(ProjectClient)
+    @InjectRepository(ProjectClient)
     private projectClientRepository: Repository<ProjectClient>,
-    @jectRepository(ProjectSource)
+    @InjectRepository(ProjectSource)
     private projectSourceRepository: Repository<ProjectSource>,
-    @jectRepository(ProjectEquipment)
+    @InjectRepository(ProjectEquipment)
     private projectEquipmentRepository: Repository<ProjectEquipment>,
-    @jectRepository(ProjectFinancial)
+    @InjectRepository(ProjectFinancial)
     private projectFinancialRepository: Repository<ProjectFinancial>,
-    @jectRepository(ProjectTransaction)
+    @InjectRepository(ProjectTransaction)
     private projectTransactionRepository: Repository<ProjectTransaction>,
-    @jectRepository(ProjectUtilizationScenario)
+    @InjectRepository(ProjectUtilizationScenario)
     private projectUtilizationScenarioRepository: Repository<ProjectUtilizationScenario>,
-    @jectRepository(ProjectAttachment)
+    @InjectRepository(ProjectAttachment)
     private projectAttachmentRepository: Repository<ProjectAttachment>,
     private emailService: EmailService,
   ) {}
@@ -292,7 +292,7 @@ export class ProjectsService {
         if (latestProject && latestProject.projectNumber) {
           // Extract the sequence number from the latest project number
           // Format: YYYYSSSS (e.g., 20250001)
-          const lastSequence = parset(
+          const lastSequence = parseInt(
             latestProject.projectNumber.substring(4),
             10,
           );
