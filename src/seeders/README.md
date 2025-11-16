@@ -4,13 +4,25 @@ This directory contains database seeders for the 4AMI platform.
 
 ## Available Seeders
 
-### Admin Seeder
-Creates a default admin user for system administration.
+### Test Users Seeder
+Creates test users for all roles: Admin, Owner, and Customer.
 
-**Admin Credentials:**
+**Test Credentials:**
+
+**System Administrator:**
 - Email: `admin@4ami.com`
 - Password: `Admin@123456`
-- Role: `admin`
+- Role: `ADMIN`
+
+**Owner (Bill Banfield):**
+- Email: `bill@4ami.com`
+- Password: `Owner@123456`
+- Role: `ADMIN`
+
+**Customer Admin:**
+- Email: `customer@4ami.com`
+- Password: `Customer@123456`
+- Role: `CUSTOMER_ADMIN`
 
 ## Usage
 
