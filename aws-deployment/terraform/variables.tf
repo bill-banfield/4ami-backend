@@ -40,7 +40,7 @@ variable "db_password" {
   description = "Database password"
   type        = string
   sensitive   = true
-  default     = "CHANGEME-temp-password-123"  # Override with TF_VAR_db_password or GitHub Secret
+  default     = "CHANGEME-temp-password-123" # Override with TF_VAR_db_password or GitHub Secret
 }
 
 variable "skip_final_snapshot" {
@@ -79,7 +79,7 @@ variable "jwt_secret" {
   description = "JWT secret key"
   type        = string
   sensitive   = true
-  default     = "CHANGEME-temp-jwt-secret-key-replace-this"  # Override with TF_VAR_jwt_secret or GitHub Secret
+  default     = "CHANGEME-temp-jwt-secret-key-replace-this" # Override with TF_VAR_jwt_secret or GitHub Secret
 }
 
 variable "mail_host" {
@@ -97,14 +97,14 @@ variable "mail_port" {
 variable "mail_user" {
   description = "SMTP username for email"
   type        = string
-  default     = "noreply@project4ami.com"  # Override with TF_VAR_mail_user or GitHub Secret
+  default     = "noreply@project4ami.com" # Override with TF_VAR_mail_user or GitHub Secret
 }
 
 variable "mail_pass" {
   description = "SMTP password for email"
   type        = string
   sensitive   = true
-  default     = "CHANGEME-temp-mail-password"  # Override with TF_VAR_mail_pass or GitHub Secret
+  default     = "CHANGEME-temp-mail-password" # Override with TF_VAR_mail_pass or GitHub Secret
 }
 
 variable "mail_from" {
