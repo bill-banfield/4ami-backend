@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { AdminSeeder } from './admin.seeder';
+import { TestUsersSeeder } from './test-users.seeder';
 
 export class Seeder {
   constructor(private dataSource: DataSource) {}
@@ -8,9 +8,9 @@ export class Seeder {
     console.log('🌱 Starting database seeding...');
 
     try {
-      // Run admin seeder
-      const adminSeeder = new AdminSeeder(this.dataSource);
-      await adminSeeder.seed();
+      // Run test users seeder (includes admin, owner, and customer)
+      const testUsersSeeder = new TestUsersSeeder(this.dataSource);
+      await testUsersSeeder.seed();
 
       console.log('✅ Database seeding completed successfully');
     } catch (error) {
@@ -23,9 +23,9 @@ export class Seeder {
     console.log('🧹 Clearing seeded data...');
 
     try {
-      // Clear admin seeder
-      const adminSeeder = new AdminSeeder(this.dataSource);
-      await adminSeeder.clear();
+      // Clear test users seeder
+      const testUsersSeeder = new TestUsersSeeder(this.dataSource);
+      await testUsersSeeder.clear();
 
       console.log('✅ Seeded data cleared successfully');
     } catch (error) {
