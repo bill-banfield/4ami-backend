@@ -30,4 +30,9 @@ mail_pass = "your-app-password"  # Use App Password for Gmail
 mail_from = "noreply@4ami.com"
 
 # Frontend URL
-frontend_url = "https://your-frontend-domain.com"
+frontend_url = "https://project4ami.com"
+
+# HTTPS Configuration (Recommended for Production)
+# Set enable_https = true and provide domain_name to enable HTTPS
+enable_https = true
+domain_name = "api.project4ami.com"  # Backend API subdomain
