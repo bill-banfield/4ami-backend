@@ -114,3 +114,15 @@ variable "frontend_url" {
   type        = string
   default     = "https://your-frontend-domain.com"
 }
+
+variable "domain_name" {
+  description = "Domain name for the backend API (e.g., api.yourdomain.com). Leave empty to skip HTTPS configuration."
+  type        = string
+  default     = ""
+}
+
+variable "enable_https" {
+  description = "Enable HTTPS listener with ACM certificate"
+  type        = bool
+  default     = false
+}

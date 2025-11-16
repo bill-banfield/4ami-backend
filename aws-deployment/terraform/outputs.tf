@@ -49,18 +49,35 @@ output "alb_zone_id" {
 
 output "alb_url" {
   description = "URL of the load balancer"
-  value       = "http://${aws_lb.main.dns_name}"
+  value       = var.enable_https ? "https://${var.domain_name != "" ? var.domain_name : aws_lb.main.dns_name}" : "http://${aws_lb.main.dns_name}"
 }
 
 # API Information
 output "api_url" {
   description = "API base URL"
-  value       = "https://${aws_lb.main.dns_name}/api/v1"
+  value       = var.enable_https ? "https://${var.domain_name != "" ? var.domain_name : aws_lb.main.dns_name}/api/v1" : "http://${aws_lb.main.dns_name}/api/v1"
 }
 
 output "api_docs_url" {
   description = "API documentation URL"
-  value       = "https://${aws_lb.main.dns_name}/api/v1/docs"
+  value       = var.enable_https ? "https://${var.domain_name != "" ? var.domain_name : aws_lb.main.dns_name}/api/v1/docs" : "http://${aws_lb.main.dns_name}/api/v1/docs"
+}
+
+# SSL Certificate Information
+output "certificate_arn" {
+  description = "ARN of the ACM certificate"
+  value       = var.enable_https && var.domain_name != "" ? aws_acm_certificate.main[0].arn : null
+}
+
+output "certificate_validation_records" {
+  description = "DNS records needed to validate the ACM certificate"
+  value = var.enable_https && var.domain_name != "" ? [
+    for dvo in aws_acm_certificate.main[0].domain_validation_options : {
+      name  = dvo.resource_record_name
+      type  = dvo.resource_record_type
+      value = dvo.resource_record_value
+    }
+  ] : []
 }
 
 # ECS Information
