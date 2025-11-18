@@ -86,7 +86,8 @@ async function bootstrap() {
   }
 
   const port = configService.get('PORT', 3000);
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
+  // await app.listen(port);
   
   console.log(`🚀 4AMI Backend is running on: http://localhost:${port}/${apiPrefix}`);
   console.log(`📚 API Documentation: http://localhost:${port}/${apiPrefix}/docs`);

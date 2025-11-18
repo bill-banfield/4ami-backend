@@ -109,6 +109,7 @@ export class UsersController {
     if (!user) {
       throw new NotFoundException('User not found with the provided invitation code');
     }
+    console.log(user);
     
     // Return only the specified fields for security
     return {
@@ -118,6 +119,7 @@ export class UsersController {
       title: user.title,
       companyName: user.companyName,
       source: user.source,
+      role: user.role
     };
   }
 

@@ -258,7 +258,7 @@ export class EmailProcessor {
     const { user, invitationCode } = job.data;
 
     try {
-      const signupUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/customer-signup?token=${invitationCode}&role=${user.role}`;
+      const signupUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/customer-signup?token=${invitationCode}`;
 
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
