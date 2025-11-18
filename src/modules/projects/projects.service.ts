@@ -197,10 +197,7 @@ export class ProjectsService {
         return;
       }
 
-      // Build recipient list
-      const recipients: string[] = [];
-
-      // 1. Get all system admins (users with ADMIN role)
+      // 1. Get all system admins (users with ADMIN role) - for BCC
       const systemAdmins = await this.userRepository.find({
         where: {
           role: UserRole.ADMIN,
@@ -208,10 +205,9 @@ export class ProjectsService {
         },
       });
 
-      const systemAdminEmails = systemAdmins.map((admin) => admin.email);
-      recipients.push(...systemAdminEmails);
+      const bccRecipients = [...new Set(systemAdmins.map((admin) => admin.email))];
 
-      // 2. Get all CUSTOMER_ADMIN users from the same company
+      // 2. Get all CUSTOMER_ADMIN users from the same company - for CC
       const companyAdmins = await this.userRepository.find({
         where: {
           companyId: project.companyId,
@@ -220,15 +216,13 @@ export class ProjectsService {
         },
       });
 
-      const companyAdminEmails = companyAdmins.map((admin) => admin.email);
-      recipients.push(...companyAdminEmails);
+      const ccRecipients = [...new Set(companyAdmins.map((admin) => admin.email))];
 
-      // Remove duplicates
-      const uniqueRecipients = [...new Set(recipients)];
+      // Primary recipient is the creator
+      const toRecipient = creator.email;
 
-      if (uniqueRecipients.length === 0) {
-        console.warn('No recipients found for project creation notification');
-        return;
+      if (bccRecipients.length === 0 && ccRecipients.length === 0) {
+        console.warn('No BCC or CC recipients found for project creation notification');
       }
 
       // Fetch project attachments if available
@@ -244,11 +238,13 @@ export class ProjectsService {
         project,
         creator,
         company,
-        uniqueRecipients,
+        toRecipient,
+        ccRecipients,
+        bccRecipients,
         attachments,
       );
 
-      console.log(`✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins) with ${attachments.length} attachment(s)`);
+      console.log(`✅ Project creation notification queued - TO: ${toRecipient}, CC: ${ccRecipients.length} company admins, BCC: ${bccRecipients.length} system admins, Attachments: ${attachments.length}`);
     } catch (error) {
       console.error('Error in sendProjectCreationNotifications:', error);
       throw error;

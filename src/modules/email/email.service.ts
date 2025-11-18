@@ -97,7 +97,9 @@ export class EmailService {
     project: any,
     creator: User,
     company: Company,
-    recipients: string[],
+    to: string,
+    cc: string[],
+    bcc: string[],
     attachments?: any[],
   ): Promise<{ jobId: string; message: string }> {
     console.log('📧 EmailService.sendProjectCreationNotification called:', {
@@ -105,7 +107,9 @@ export class EmailService {
       projectName: project.name,
       creatorEmail: creator.email,
       companyName: company.companyName,
-      recipientsCount: recipients.length,
+      to: to,
+      ccCount: cc.length,
+      bccCount: bcc.length,
       attachmentsCount: attachments?.length || 0,
     });
 
@@ -113,7 +117,9 @@ export class EmailService {
       project,
       creator,
       company,
-      recipients,
+      to,
+      cc,
+      bcc,
       attachments: attachments || [],
     });
 

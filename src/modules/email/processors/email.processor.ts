@@ -306,10 +306,12 @@ export class EmailProcessor {
     project: any;
     creator: User;
     company: Company;
-    recipients: string[];
+    to: string;
+    cc: string[];
+    bcc: string[];
     attachments?: any[];
   }>) {
-    const { project, creator, company, recipients, attachments = [] } = job.data;
+    const { project, creator, company, to, cc, bcc, attachments = [] } = job.data;
 
     try {
       const projectUrl = `${process.env.FRONTEND_URL || 'https://4ami-mu.vercel.app'}/projects/${project.id}`;
@@ -425,29 +427,25 @@ export class EmailProcessor {
         console.warn(`⚠️ WARNING: Total email size (${totalSizeMB} MB) exceeds Resend's 40MB limit!`);
       }
 
-      // Send to all recipients
+      // Send single email with CC and BCC
       const provider = this.emailProviderFactory.getProvider();
-      const emailPromises = recipients.map(recipientEmail =>
-        provider.sendMail({
-          to: recipientEmail,
-          subject: `New Project Created: ${project.name} (${project.projectNumber})`,
-          html,
-          attachments: emailAttachments,
-        })
-      );
+      const result = await provider.sendMail({
+        to,
+        cc: cc.length > 0 ? cc : undefined,
+        bcc: bcc.length > 0 ? bcc : undefined,
+        subject: `New Project Created: ${project.name} (${project.projectNumber})`,
+        html,
+        attachments: emailAttachments,
+      });
 
-      const results = await Promise.all(emailPromises);
-
-      // Check if any emails failed
-      const failedEmails = results.filter(result => !result.success);
-      if (failedEmails.length > 0) {
-        throw new Error(`Failed to send ${failedEmails.length} emails`);
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send project creation notification');
       }
 
-      console.log(`✅ Project creation notifications sent successfully to ${recipients.length} recipients with ${emailAttachments.length} attachment(s)`);
-      return { success: true, recipients, projectId: project.id, attachmentsCount: emailAttachments.length };
+      console.log(`✅ Project creation notification sent successfully - TO: ${to}, CC: ${cc.length}, BCC: ${bcc.length}, Attachments: ${emailAttachments.length}`);
+      return { success: true, to, ccCount: cc.length, bccCount: bcc.length, projectId: project.id, attachmentsCount: emailAttachments.length };
     } catch (error) {
-      console.error(`❌ Failed to send project creation notifications:`, error);
+      console.error(`❌ Failed to send project creation notification:`, error);
       throw error;
     }
   }
