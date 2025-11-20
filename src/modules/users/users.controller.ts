@@ -27,6 +27,8 @@ import { InviteUserDto } from './dto/invite-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UserVerificationResponseDto } from './dto/user-verification-response.dto';
 import { UserInvitationDetailsDto } from './dto/user-invitation-details.dto';
+import { CustomerAdminStatsDto } from './dto/customer-admin-stats.dto';
+import { CustomerUserStatsDto } from './dto/customer-user-stats.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -87,6 +89,30 @@ export class UsersController {
   @ApiResponse({ status: 200, description: 'Dashboard stats retrieved' })
   getDashboardStats() {
     return this.usersService.getDashboardStats();
+  }
+
+  @Get('customer-admin/stats')
+  @Roles(UserRole.CUSTOMER_ADMIN)
+  @ApiOperation({ summary: 'Get Customer Admin company statistics' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Customer Admin stats retrieved successfully',
+    type: CustomerAdminStatsDto 
+  })
+  getCustomerAdminStats(@CurrentUser() user: User): Promise<CustomerAdminStatsDto> {
+    return this.usersService.getCustomerAdminStats(user);
+  }
+
+  @Get('customer-user/stats')
+  @Roles(UserRole.CUSTOMER_USER)
+  @ApiOperation({ summary: 'Get Customer User personal statistics' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Customer User stats retrieved successfully',
+    type: CustomerUserStatsDto 
+  })
+  getCustomerUserStats(@CurrentUser() user: User): Promise<CustomerUserStatsDto> {
+    return this.usersService.getCustomerUserStats(user);
   }
 
   @Get('invitation')
