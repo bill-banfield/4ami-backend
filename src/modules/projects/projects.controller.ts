@@ -32,6 +32,8 @@ import {
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { FilterProjectsDto } from './dto/filter-projects.dto';
+import { PaginatedProjectsResponseDto } from './dto/paginated-projects-response.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { ProjectStatus } from '../../common/enums/project-status.enum';
@@ -74,16 +76,20 @@ export class ProjectsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all projects with pagination' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
+  @ApiOperation({ 
+    summary: 'Get all projects with pagination and filters',
+    description: 'Retrieve projects with optional filtering by status, industry, asset class, make, and model. Supports pagination via page/limit or offset/limit.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Projects retrieved successfully',
+    type: PaginatedProjectsResponseDto 
+  })
   findAll(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query() filterDto: FilterProjectsDto,
     @CurrentUser() user: User,
   ) {
-    return this.projectsService.findAll(page, limit, user.id, user.role);
+    return this.projectsService.findAllFiltered(filterDto, user.id, user.role);
   }
 
   @Get('dashboard/stats')

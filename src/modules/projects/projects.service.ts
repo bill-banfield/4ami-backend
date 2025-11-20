@@ -22,6 +22,8 @@ import { ProjectStatus } from '../../common/enums/project-status.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { FilterProjectsDto } from './dto/filter-projects.dto';
+import { SORT_FIELDS } from './constants/pagination.constants';
 import { EmailService } from '../email/email.service';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -376,6 +378,164 @@ export class ProjectsService {
       total,
       page,
       limit,
+    };
+  }
+
+  /**
+   * Find all projects with advanced filtering and pagination
+   * 
+   * Supports:
+   * - Role-based access control (ADMIN sees all non-draft, CUSTOMER_ADMIN sees company projects, CUSTOMER_USER sees own projects)
+   * - Full-text search on project name and number
+   * - Status filtering
+   * - Equipment-related filters (industry, asset class, make, model) with case-insensitive partial matching
+   * - Flexible sorting (by createdAt, updatedAt, name, projectNumber, status)
+   * - Dual pagination strategies: page/limit or offset/limit
+   * 
+   * @param filterDto - Filter and pagination parameters
+   * @param userId - Current user ID for access control
+   * @param userRole - Current user role for access control
+   * @returns Paginated projects with metadata
+   */
+  async findAllFiltered(
+    filterDto: FilterProjectsDto,
+    userId?: string,
+    userRole?: UserRole,
+  ): Promise<{
+    projects: any[];
+    total: number;
+    page: number;
+    limit: number;
+    offset?: number;
+    hasMore: boolean;
+  }> {
+    const { 
+      search, 
+      status, 
+      industry, 
+      assetClass, 
+      make, 
+      model, 
+      sortBy = 'createdAt', 
+      sortOrder = 'DESC',
+      page = 1, 
+      limit = 10, 
+      offset 
+    } = filterDto;
+
+    // Determine pagination strategy: use offset if provided, otherwise use page
+    const skip = offset !== undefined ? offset : (page - 1) * limit;
+
+    const queryBuilder = this.projectRepository
+      .createQueryBuilder('project')
+      .leftJoin('project.createdBy', 'createdBy')
+      .addSelect(['createdBy.id', 'createdBy.firstName', 'createdBy.lastName'])
+      .leftJoin('project.company', 'company')
+      .addSelect(['company.id', 'company.companyName'])
+      .leftJoin('project.projectType', 'projectType')
+      .addSelect(['projectType.id', 'projectType.name', 'projectType.code'])
+      .leftJoinAndSelect('project.assets', 'assets')
+      .leftJoinAndSelect('project.reports', 'reports');
+
+    // Apply role-based filtering
+    if (userRole === UserRole.ADMIN) {
+      // System Admin: See all projects EXCEPT DRAFT
+      queryBuilder.where('project.status != :draftStatus', {
+        draftStatus: ProjectStatus.DRAFT,
+      });
+    } else if (userRole === UserRole.CUSTOMER_ADMIN && userId) {
+      // Customer Admin: See all projects from their company EXCEPT DRAFT
+      const user = await this.userRepository.findOne({ where: { id: userId } });
+      if (user && user.companyId) {
+        queryBuilder
+          .where('project.companyId = :companyId', { companyId: user.companyId })
+          .andWhere('project.status != :draftStatus', {
+            draftStatus: ProjectStatus.DRAFT,
+          });
+      }
+    } else if (userRole === UserRole.CUSTOMER_USER && userId) {
+      // Customer User: See only their own DRAFT and PENDING projects
+      queryBuilder
+        .where('project.createdById = :userId', { userId })
+        .andWhere('project.status IN (:...allowedStatuses)', {
+          allowedStatuses: [ProjectStatus.DRAFT, ProjectStatus.PENDING],
+        });
+    } else if (userId) {
+      // Fallback: if role not recognized, show only user's own projects
+      queryBuilder.where('project.createdById = :userId', { userId });
+    }
+
+    // Apply search filter (project name or project number)
+    if (search) {
+      queryBuilder.andWhere(
+        '(project.name ILIKE :search OR project.projectNumber ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
+
+    // Apply status filter
+    if (status) {
+      queryBuilder.andWhere('project.status = :status', { status });
+    }
+
+    // Apply equipment-related filters (industry, assetClass, make, model)
+    // These require joining with project_equipments table
+    if (industry || assetClass || make || model) {
+      queryBuilder.leftJoin('project.equipments', 'equipment');
+
+      if (industry) {
+        queryBuilder.andWhere('equipment.industry ILIKE :industry', { 
+          industry: `%${industry}%` 
+        });
+      }
+
+      if (assetClass) {
+        queryBuilder.andWhere('equipment.assetClass ILIKE :assetClass', { 
+          assetClass: `%${assetClass}%` 
+        });
+      }
+
+      if (make) {
+        queryBuilder.andWhere('equipment.make ILIKE :make', { 
+          make: `%${make}%` 
+        });
+      }
+
+      if (model) {
+        queryBuilder.andWhere('equipment.model ILIKE :model', { 
+          model: `%${model}%` 
+        });
+      }
+
+      // Use DISTINCT to avoid duplicate projects when joining with equipments
+      queryBuilder.distinct(true);
+    }
+
+    // Get total count before pagination
+    const total = await queryBuilder.getCount();
+
+    // Apply sorting
+    // Validate sortBy to prevent SQL injection (already validated by DTO, but extra safety)
+    const safeSortBy = (SORT_FIELDS as readonly string[]).includes(sortBy) ? sortBy : 'createdAt';
+    const safeSortOrder = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
+    // Apply pagination and sorting
+    const projects = await queryBuilder
+      .skip(skip)
+      .take(limit)
+      .orderBy(`project.${safeSortBy}`, safeSortOrder)
+      .getMany();
+
+    // Calculate hasMore for cursor-based pagination
+    const hasMore = skip + projects.length < total;
+
+    return {
+      projects,
+      total,
+      page: offset !== undefined ? Math.floor(skip / limit) + 1 : page,
+      limit,
+      offset: offset !== undefined ? skip : undefined,
+      hasMore,
     };
   }
 
