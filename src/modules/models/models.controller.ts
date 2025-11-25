@@ -20,9 +20,7 @@ import { ModelsService } from './models.service';
 import { CreateModelDto } from './dto/create-model.dto';
 import { UpdateModelDto } from './dto/update-model.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '../../entities/user.entity';
+import { Role } from '../../common/enums/user-role.enum';
 
 @ApiTags('Models')
 @ApiBearerAuth()
@@ -52,9 +50,16 @@ export class ModelsController {
     @Query('search') search?: string,
   ) {
     const parsedIndustryId = industryId ? parseInt(industryId, 10) : undefined;
-    const parsedAssetClassId = assetClassId ? parseInt(assetClassId, 10) : undefined;
+    const parsedAssetClassId = assetClassId
+      ? parseInt(assetClassId, 10)
+      : undefined;
     const parsedMakeId = makeId ? parseInt(makeId, 10) : undefined;
-    return this.modelsService.findAll(parsedIndustryId, parsedAssetClassId, parsedMakeId, search);
+    return this.modelsService.findAll(
+      parsedIndustryId,
+      parsedAssetClassId,
+      parsedMakeId,
+      search,
+    );
   }
 
   @Get(':id')
@@ -66,7 +71,7 @@ export class ModelsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update model' })
   @ApiResponse({ status: 200, description: 'Model updated successfully' })
   @ApiResponse({ status: 404, description: 'Model not found' })
@@ -79,7 +84,7 @@ export class ModelsController {
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Delete model' })
   @ApiResponse({ status: 200, description: 'Model deleted successfully' })
   @ApiResponse({ status: 404, description: 'Model not found' })

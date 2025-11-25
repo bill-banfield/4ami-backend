@@ -12,7 +12,7 @@ export class ProjectTypeResponseDto {
 
   @ApiProperty({
     example: 'Asset residual value analysis project for equipment evaluation',
-    nullable: true
+    nullable: true,
   })
   description: string;
 

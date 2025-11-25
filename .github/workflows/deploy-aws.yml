@@ -1,0 +1,480 @@
+name: Deploy 4AMI Backend to AWS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      create_new_database:
+        description: 'Create new database instance (WARNING: Creates new RDS instance)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: ami-backend-repo
+  ECS_SERVICE: ami-backend-service
+  ECS_CLUSTER: ami-backend-cluster
+  ECS_TASK_DEFINITION: ami-backend-task
+  CONTAINER_NAME: ami-backend-container
+  CREATE_NEW_DB: ${{ github.event.inputs.create_new_database || 'false' }}
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: package-lock.json
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run linting
+      run: npm run lint
+
+    - name: Run tests
+      run: npm run test
+
+    - name: Build application
+      run: npm run build
+
+  deploy-infrastructure:
+    name: Deploy AWS Infrastructure
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - name: Set resource suffix based on database creation flag
+      id: resource_suffix_setup
+      run: |
+        if [ "${{ env.CREATE_NEW_DB }}" = "true" ]; then
+          UNIQUE_SUFFIX=$(head /dev/urandom | tr -dc a-z0-9 | head -c 8)
+          echo "UNIQUE_SUFFIX=$UNIQUE_SUFFIX" >> $GITHUB_ENV
+          echo "Creating new database with suffix: $UNIQUE_SUFFIX"
+        else
+          echo "UNIQUE_SUFFIX=" >> $GITHUB_ENV
+          echo "Using existing database (no suffix)"
+        fi
+      timeout-minutes: 1
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Verify AWS connection
+      run: |
+        echo "🔐 Verifying AWS connection..."
+        aws sts get-caller-identity
+        echo "🌍 AWS Region: $AWS_REGION"
+        echo "✅ AWS connection verified"
+      timeout-minutes: 2
+
+    - name: Check for existing resources
+      run: |
+        echo "🔍 Checking for existing resources that might conflict..."
+        echo "Checking VPCs..."
+        aws ec2 describe-vpcs --filters "Name=tag:Name,Values=ami-backend-vpc" --query 'Vpcs[].VpcId' --output text || echo "No existing VPCs found"
+        echo "Checking RDS instances..."
+        aws rds describe-db-instances --query 'DBInstances[?contains(DBInstanceIdentifier, `ami-backend`)].DBInstanceIdentifier' --output text || echo "No existing RDS instances found"
+        echo "Checking ECR repositories..."
+        aws ecr describe-repositories --repository-names ami-backend-repo --query 'repositories[].repositoryName' --output text || echo "No existing ECR repository found"
+        echo "Checking IAM roles..."
+        aws iam get-role --role-name ami-backend-ecs-execution-role --query 'Role.RoleName' --output text || echo "No existing execution role found"
+        aws iam get-role --role-name ami-backend-ecs-task-role --query 'Role.RoleName' --output text || echo "No existing task role found"
+        echo "Checking CloudWatch log groups..."
+        aws logs describe-log-groups --log-group-name-prefix "/ecs/ami-backend" --query 'logGroups[].logGroupName' --output text || echo "No existing log groups found"
+        echo "✅ Resource check completed"
+      timeout-minutes: 3
+
+    - name: Skip cleanup for existing infrastructure
+      if: env.CREATE_NEW_DB == 'false'
+      run: |
+        echo "ℹ️  Skipping resource cleanup - using existing infrastructure"
+        echo "Database mode: Reusing ami-backend-postgres"
+      timeout-minutes: 1
+
+    - name: Clean up conflicting resources
+      if: env.CREATE_NEW_DB == 'true'
+      run: |
+        echo "🧹 Cleaning up conflicting resources for new database deployment..."
+        echo "Using unique suffix: ${{ env.UNIQUE_SUFFIX }}"
+
+        # Delete ECR repository if it exists
+        if aws ecr describe-repositories --repository-names ami-backend-${{ env.UNIQUE_SUFFIX }}-repo >/dev/null 2>&1; then
+          echo "Deleting existing ECR repository..."
+          aws ecr delete-repository --repository-name ami-backend-${{ env.UNIQUE_SUFFIX }}-repo --force
+        fi
+        
+        # Delete CloudWatch log group if it exists
+        if aws logs describe-log-groups --log-group-name-prefix "/ecs/ami-backend-${{ env.UNIQUE_SUFFIX }}" --query 'logGroups[].logGroupName' --output text | grep -q "/ecs/ami-backend-${{ env.UNIQUE_SUFFIX }}"; then
+          echo "Deleting existing CloudWatch log group..."
+          aws logs delete-log-group --log-group-name "/ecs/ami-backend-${{ env.UNIQUE_SUFFIX }}"
+        fi
+        
+        # Delete IAM roles if they exist
+        if aws iam get-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-execution-role >/dev/null 2>&1; then
+          echo "Deleting existing ECS execution role..."
+          aws iam detach-role-policy --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-execution-role --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+          aws iam delete-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-execution-role
+        fi
+        
+        if aws iam get-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-task-role >/dev/null 2>&1; then
+          echo "Deleting existing ECS task role..."
+          aws iam delete-role --role-name ami-backend-${{ env.UNIQUE_SUFFIX }}-ecs-task-role
+        fi
+        
+        # Delete Load Balancer resources in correct order
+        if aws elbv2 describe-load-balancers --names ami-backend-${{ env.UNIQUE_SUFFIX }}-alb --query 'LoadBalancers[].LoadBalancerName' --output text | grep -q "ami-backend-${{ env.UNIQUE_SUFFIX }}-alb"; then
+          echo "Deleting existing Load Balancer and dependencies..."
+          LB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-${{ env.UNIQUE_SUFFIX }}-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+          
+          # Delete listeners first
+          LISTENERS=$(aws elbv2 describe-listeners --load-balancer-arn $LB_ARN --query 'Listeners[].ListenerArn' --output text)
+          for listener in $LISTENERS; do
+            echo "Deleting listener: $listener"
+            aws elbv2 delete-listener --listener-arn $listener
+          done
+          
+          # Wait a moment for listeners to be deleted
+          sleep 10
+          
+          # Delete target groups
+          TARGET_GROUPS=$(aws elbv2 describe-target-groups --load-balancer-arn $LB_ARN --query 'TargetGroups[].TargetGroupArn' --output text)
+          for tg in $TARGET_GROUPS; do
+            echo "Deleting target group: $tg"
+            aws elbv2 delete-target-group --target-group-arn $tg
+          done
+          
+          # Wait a moment for target groups to be deleted
+          sleep 10
+          
+          # Finally delete the load balancer
+          echo "Deleting load balancer: $LB_ARN"
+          aws elbv2 delete-load-balancer --load-balancer-arn $LB_ARN
+        fi
+        
+        # Delete RDS DB Subnet Group if it exists
+        if aws rds describe-db-subnet-groups --db-subnet-group-name ami-backend-${{ env.UNIQUE_SUFFIX }}-db-subnet-group --query 'DBSubnetGroups[].DBSubnetGroupName' --output text | grep -q "ami-backend-${{ env.UNIQUE_SUFFIX }}-db-subnet-group"; then
+          echo "Deleting existing RDS DB Subnet Group..."
+          aws rds delete-db-subnet-group --db-subnet-group-name ami-backend-${{ env.UNIQUE_SUFFIX }}-db-subnet-group
+        fi
+        
+        # Delete any remaining Target Groups
+        TARGET_GROUPS=$(aws elbv2 describe-target-groups --query 'TargetGroups[?contains(TargetGroupName, `ami-backend-${{ env.UNIQUE_SUFFIX }}`)].TargetGroupArn' --output text)
+        for tg in $TARGET_GROUPS; do
+          echo "Deleting orphaned target group: $tg"
+          aws elbv2 delete-target-group --target-group-arn $tg || echo "Target group $tg could not be deleted (may be in use)"
+        done
+        
+        echo "✅ Cleanup completed"
+      timeout-minutes: 10
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: '1.6.0'
+
+    - name: Terraform Init
+      run: |
+        echo "🚀 Initializing Terraform with S3 backend..."
+        terraform init -upgrade -reconfigure
+        echo "✅ Terraform initialized successfully with remote state"
+      working-directory: aws-deployment/terraform
+      timeout-minutes: 5
+
+    - name: Terraform Validate
+      run: |
+        echo "🔍 Validating Terraform configuration..."
+        terraform validate
+        echo "✅ Terraform configuration is valid"
+      working-directory: aws-deployment/terraform
+      timeout-minutes: 2
+
+    - name: Import existing resources (if not in state)
+      if: env.CREATE_NEW_DB == 'false'
+      run: |
+        echo "📥 Checking and importing existing resources into Terraform state..."
+
+        # Set Terraform variables for import commands
+        export TF_VAR_db_password="${{ secrets.DB_PASSWORD || 'defaultpassword123' }}"
+        export TF_VAR_jwt_secret="${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}"
+        export TF_VAR_mail_user="${{ secrets.MAIL_USER || 'noreply@4ami.com' }}"
+        export TF_VAR_mail_pass="${{ secrets.MAIL_PASS || 'default-mail-password' }}"
+        export TF_VAR_unique_suffix="${{ env.UNIQUE_SUFFIX }}"
+        export TF_VAR_skip_final_snapshot=true
+        export TF_VAR_deletion_protection=false
+
+        # Function to import resource if it doesn't exist in state
+        import_if_needed() {
+          local resource_address=$1
+          local resource_id=$2
+          local resource_name=$3
+
+          if ! terraform state show "$resource_address" >/dev/null 2>&1; then
+            echo "Importing $resource_name..."
+            terraform import "$resource_address" "$resource_id" 2>&1 | grep -v "Warning" || echo "⚠️  Import failed or resource doesn't exist: $resource_name"
+          else
+            echo "✓ $resource_name already in state"
+          fi
+        }
+
+        # Import ECR Repository
+        import_if_needed "aws_ecr_repository.main" "ami-backend-repo" "ECR Repository"
+
+        # Import CloudWatch Log Group
+        import_if_needed "aws_cloudwatch_log_group.main" "/ecs/ami-backend" "CloudWatch Log Group"
+
+        # Import IAM Roles
+        import_if_needed "aws_iam_role.ecs_execution_role" "ami-backend-ecs-execution-role" "ECS Execution Role"
+        import_if_needed "aws_iam_role.ecs_task_role" "ami-backend-ecs-task-role" "ECS Task Role"
+
+        # Import DB Subnet Group
+        import_if_needed "aws_db_subnet_group.main" "ami-backend-db-subnet-group" "DB Subnet Group"
+
+        # Import RDS Instance
+        import_if_needed "aws_db_instance.main" "ami-backend-postgres" "RDS Instance"
+
+        # Import ECS Cluster
+        import_if_needed "aws_ecs_cluster.main" "ami-backend-cluster" "ECS Cluster"
+
+        # Import ECS Service
+        import_if_needed "aws_ecs_service.main" "ami-backend-cluster/ami-backend-service" "ECS Service"
+
+        # Import Load Balancer
+        ALB_ARN=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].LoadBalancerArn' --output text 2>/dev/null || echo "")
+        if [ -n "$ALB_ARN" ] && [ "$ALB_ARN" != "None" ]; then
+          import_if_needed "aws_lb.main" "$ALB_ARN" "Application Load Balancer"
+        fi
+
+        # Import Target Group
+        TG_ARN=$(aws elbv2 describe-target-groups --names ami-backend-tg --query 'TargetGroups[0].TargetGroupArn' --output text 2>/dev/null || echo "")
+        if [ -n "$TG_ARN" ] && [ "$TG_ARN" != "None" ]; then
+          import_if_needed "aws_lb_target_group.main" "$TG_ARN" "Target Group"
+        fi
+
+        echo "✅ Resource import check completed"
+      working-directory: aws-deployment/terraform
+      timeout-minutes: 10
+
+    - name: Terraform Plan
+      run: |
+        echo "📋 Creating Terraform plan..."
+        echo "Database creation mode: ${{ env.CREATE_NEW_DB }}"
+        echo "Resource suffix: '${{ env.UNIQUE_SUFFIX }}'"
+
+        # Function to run terraform plan
+        run_plan() {
+          terraform plan -out=tfplan \
+            -var="db_password=${{ secrets.DB_PASSWORD || 'defaultpassword123' }}" \
+            -var="jwt_secret=${{ secrets.JWT_SECRET || 'default-jwt-secret-key-12345' }}" \
+            -var="mail_user=${{ secrets.MAIL_USER || 'noreply@4ami.com' }}" \
+            -var="mail_pass=${{ secrets.MAIL_PASS || 'default-mail-password' }}" \
+            -var="unique_suffix=${{ env.UNIQUE_SUFFIX }}" \
+            -var="skip_final_snapshot=true" \
+            -var="deletion_protection=false"
+        }
+
+        # Try terraform plan, capture output and exit code
+        set +e
+        OUTPUT=$(run_plan 2>&1)
+        EXIT_CODE=$?
+        set -e
+
+        echo "$OUTPUT"
+
+        # If plan failed, check if it was due to lock
+        if [ $EXIT_CODE -ne 0 ]; then
+          if echo "$OUTPUT" | grep -q "Error acquiring the state lock"; then
+            echo "⚠️  Lock detected, clearing via DynamoDB and retrying..."
+            aws dynamodb delete-item --table-name ami-backend-terraform-locks \
+              --key '{"LockID":{"S":"ami-backend-terraform-state/terraform.tfstate"}}' \
+              --region us-east-1 || echo "No lock to clear"
+
+            sleep 5
+
+            echo "🔄 Retrying terraform plan..."
+            run_plan
+          else
+            echo "❌ Plan failed for non-lock reason"
+            exit $EXIT_CODE
+          fi
+        fi
+
+        echo "✅ Terraform plan created successfully"
+      working-directory: aws-deployment/terraform
+      timeout-minutes: 10
+
+    - name: Terraform Apply
+      run: |
+        echo "🏗️ Applying Terraform configuration..."
+        terraform apply -auto-approve tfplan
+        echo "✅ Terraform applied successfully"
+      working-directory: aws-deployment/terraform
+      timeout-minutes: 25
+
+  build-and-push:
+    name: Build and Push Docker Image
+    needs: [test, deploy-infrastructure]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build a docker container and push it to ECR
+        docker build -f Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -f Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy to AWS
+    needs: [build-and-push, deploy-infrastructure]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Download task definition
+      run: |
+        aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --query taskDefinition > task-definition.json
+
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: task-definition.json
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ needs.build-and-push.outputs.image }}
+
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+  test-deployment:
+    name: Test Deployment
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Get Load Balancer DNS
+      id: get-alb-dns
+      run: |
+        ALB_DNS=$(aws elbv2 describe-load-balancers --names ami-backend-alb --query 'LoadBalancers[0].DNSName' --output text)
+        echo "alb-dns=$ALB_DNS" >> $GITHUB_OUTPUT
+        echo "API URL: http://$ALB_DNS/api/v1"
+
+    - name: Wait for deployment to be ready
+      run: |
+        echo "Waiting for deployment to be ready..."
+        sleep 60
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        pip install requests
+
+    - name: Run deployment tests
+      run: |
+        python aws-deployment/tests/test-backend-deployment.py --url http://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
+
+    - name: Setup Node.js for additional tests
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Run frontend-backend connection tests
+      run: |
+        node aws-deployment/tests/test-frontend-backend-connection.js http://${{ steps.get-alb-dns.outputs.alb-dns }}/api/v1
+
+  notify:
+    name: Notify Deployment Status
+    needs: [deploy, test-deployment]
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Notify Success
+      if: needs.test-deployment.result == 'success'
+      run: |
+        echo "🎉 Deployment successful!"
+        echo "Backend is now running on AWS"
+        echo "Check the deployment in AWS Console"
+
+    - name: Notify Failure
+      if: needs.test-deployment.result == 'failure'
+      run: |
+        echo "❌ Deployment failed!"
+        echo "Check the logs for more details"
+        exit 1

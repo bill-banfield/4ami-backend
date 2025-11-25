@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Industry } from '../../entities/industry.entity';
@@ -24,7 +28,9 @@ export class IndustriesService {
     });
 
     if (existing) {
-      throw new ConflictException(`Industry "${normalizedName}" already exists`);
+      throw new ConflictException(
+        `Industry "${normalizedName}" already exists`,
+      );
     }
 
     const industry = this.industryRepo.create(createIndustryDto);
@@ -77,7 +83,10 @@ export class IndustriesService {
     return industry;
   }
 
-  async update(id: number, updateIndustryDto: UpdateIndustryDto): Promise<Industry> {
+  async update(
+    id: number,
+    updateIndustryDto: UpdateIndustryDto,
+  ): Promise<Industry> {
     const industry = await this.findOne(id);
 
     // If updating name, check for duplicates
@@ -88,7 +97,9 @@ export class IndustriesService {
       });
 
       if (existing && existing.id !== id) {
-        throw new ConflictException(`Industry "${normalizedName}" already exists`);
+        throw new ConflictException(
+          `Industry "${normalizedName}" already exists`,
+        );
       }
     }
 

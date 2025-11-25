@@ -14,7 +14,7 @@ export function validateFiles(files: Express.Multer.File[]): void {
     throw new BadRequestException('Maximum 10 files allowed per upload');
   }
 
-  files.forEach((file) => {
+  files.forEach(file => {
     // Check file size (10MB max)
     if (file.size > 10 * 1024 * 1024) {
       throw new BadRequestException(
@@ -95,5 +95,5 @@ export function formatFileSize(bytes: number): string {
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-  return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }

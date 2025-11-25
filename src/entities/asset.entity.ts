@@ -49,14 +49,14 @@ export class Asset {
   @Column({ nullable: true })
   projectId: string;
 
-  @ManyToOne(() => Project, (project) => project.assets)
+  @ManyToOne(() => Project, project => project.assets)
   @JoinColumn({ name: 'projectId' })
   project: Project;
 
   @Column({ nullable: true })
   createdById: string;
 
-  @ManyToOne(() => User, (user) => user.assets)
+  @ManyToOne(() => User, user => user.assets)
   @JoinColumn({ name: 'createdById' })
   createdBy: User;
 
@@ -67,6 +67,6 @@ export class Asset {
   updatedAt: Date;
 
   // Relations
-  @OneToMany(() => ResidualForm, (form) => form.asset)
+  @OneToMany(() => ResidualForm, form => form.asset)
   residualForms: ResidualForm[];
 }

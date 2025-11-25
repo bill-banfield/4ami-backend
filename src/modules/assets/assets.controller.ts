@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
@@ -25,8 +24,6 @@ import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { BulkImportDto } from './dto/bulk-import.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
 import { AssetStatus } from '../../common/enums/asset-status.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../../entities/user.entity';
@@ -56,7 +53,13 @@ export class AssetsController {
     @Query('limit') limit: number = 10,
     @Query('projectId') projectId?: string,
   ) {
-    return this.assetsService.findAll(page, limit, projectId, user.id, user.role);
+    return this.assetsService.findAll(
+      page,
+      limit,
+      projectId,
+      user.id,
+      user.role,
+    );
   }
 
   @Get('dashboard/stats')
@@ -96,7 +99,10 @@ export class AssetsController {
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update asset status' })
-  @ApiResponse({ status: 200, description: 'Asset status updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Asset status updated successfully',
+  })
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: AssetStatus,
@@ -114,23 +120,31 @@ export class AssetsController {
   }
 
   @Post('bulk-import')
-  @ApiOperation({ 
-    summary: 'Bulk import industries, asset classes, makes, models, and equipment records from CSV',
-    description: 'Accepts CSV with headers: Industry, Asset Class, Make, Model. Creates hierarchical entities and equipment records retrievable via GET /equipments endpoint.'
+  @ApiOperation({
+    summary:
+      'Bulk import industries, asset classes, makes, models, and equipment records from CSV',
+    description:
+      'Accepts CSV with headers: Industry, Asset Class, Make, Model. Creates hierarchical entities and equipment records retrievable via GET /equipments endpoint.',
   })
   @ApiConsumes('multipart/form-data')
-  @ApiResponse({ 
-    status: 201, 
+  @ApiResponse({
+    status: 201,
     description: 'Bulk import job enqueued for asynchronous processing',
     schema: {
       type: 'object',
       properties: {
-        jobId: { type: 'string', description: 'Bull queue job ID for tracking' },
+        jobId: {
+          type: 'string',
+          description: 'Bull queue job ID for tracking',
+        },
         message: { type: 'string', description: 'Status message' },
       },
     },
   })
-  @ApiResponse({ status: 400, description: 'Invalid file or missing required fields' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid file or missing required fields',
+  })
   @UseInterceptors(FileInterceptor('file'))
   bulkImport(
     @Body() bulkImportDto: BulkImportDto,

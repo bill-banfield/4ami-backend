@@ -7,7 +7,6 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
   UseInterceptors,
@@ -34,8 +33,6 @@ import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { FilterProjectsDto } from './dto/filter-projects.dto';
 import { PaginatedProjectsResponseDto } from './dto/paginated-projects-response.dto';
-import { Roles } from '../../common/decorators/roles.decorator';
-import { UserRole } from '../../common/enums/user-role.enum';
 import { ProjectStatus } from '../../common/enums/project-status.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../../entities/user.entity';
@@ -48,21 +45,31 @@ export class ProjectsController {
 
   @Get('types')
   @ApiOperation({ summary: 'Get available project types' })
-  @ApiResponse({ status: 200, description: 'Project types retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Project types retrieved successfully',
+  })
   getProjectTypes() {
     return this.projectsService.getProjectTypes();
   }
 
   @Get('sources')
-  @ApiOperation({ summary: 'Get all project sources associated with the current user' })
-  @ApiResponse({ status: 200, description: 'Project sources retrieved successfully' })
+  @ApiOperation({
+    summary: 'Get all project sources associated with the current user',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Project sources retrieved successfully',
+  })
   getUserProjectSources(@CurrentUser() user: User) {
     return this.projectsService.getUserProjectSources(user.id, user.role);
   }
 
   @Post()
   @UseInterceptors(FilesInterceptor('files', 10, multerOptions))
-  @ApiOperation({ summary: 'Create a new project with optional file attachments' })
+  @ApiOperation({
+    summary: 'Create a new project with optional file attachments',
+  })
   @ApiResponse({ status: 201, description: 'Project created successfully' })
   create(
     @Body('projectData') projectDataString: string,
@@ -76,20 +83,16 @@ export class ProjectsController {
   }
 
   @Get()
-  @ApiOperation({ 
-    summary: 'Get all projects with pagination and filters',
-    description: 'Retrieve projects with optional filtering by status, industry, asset class, make, and model. Supports pagination via page/limit or offset/limit.'
-  })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Projects retrieved successfully',
-    type: PaginatedProjectsResponseDto 
-  })
+  @ApiOperation({ summary: 'Get all projects with pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
   findAll(
-    @Query() filterDto: FilterProjectsDto,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @CurrentUser() user: User,
   ) {
-    return this.projectsService.findAllFiltered(filterDto, user.id, user.role);
+    return this.projectsService.findAll(page, limit, user.id, user.role);
   }
 
   @Get('dashboard/stats')
@@ -130,12 +133,20 @@ export class ProjectsController {
     @Body() updateProjectDto: UpdateProjectDto,
     @CurrentUser() user: User,
   ) {
-    return this.projectsService.update(id, updateProjectDto, user.id, user.role);
+    return this.projectsService.update(
+      id,
+      updateProjectDto,
+      user.id,
+      user.role,
+    );
   }
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update project status' })
-  @ApiResponse({ status: 200, description: 'Project status updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Project status updated successfully',
+  })
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: ProjectStatus,
@@ -145,8 +156,14 @@ export class ProjectsController {
   }
 
   @Post(':id/submit')
-  @ApiOperation({ summary: 'Submit a draft project (changes status from DRAFT to PENDING and sends notifications)' })
-  @ApiResponse({ status: 200, description: 'Draft project submitted successfully' })
+  @ApiOperation({
+    summary:
+      'Submit a draft project (changes status from DRAFT to PENDING and sends notifications)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Draft project submitted successfully',
+  })
   @ApiResponse({ status: 400, description: 'Project is not in DRAFT status' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   submitDraft(@Param('id') id: string, @CurrentUser() user: User) {
@@ -188,7 +205,10 @@ export class ProjectsController {
 
   @Get(':projectId/attachments')
   @ApiOperation({ summary: 'Get all attachments for a project' })
-  @ApiResponse({ status: 200, description: 'Attachments retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Attachments retrieved successfully',
+  })
   @ApiResponse({ status: 404, description: 'Project not found' })
   getAttachments(
     @Param('projectId') projectId: string,

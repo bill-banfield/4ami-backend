@@ -20,15 +20,16 @@ export class CreateUserDto {
   @IsString()
   phone?: string;
 
-  @ApiProperty({ 
-    enum: UserRole, 
+  @ApiProperty({
+    enum: UserRole,
     enumName: 'UserRole',
     example: UserRole.CUSTOMER_USER,
-    required: false 
+    required: false,
   })
   @IsOptional()
   @IsEnum(UserRole, {
-    message: 'role must be one of the following values: ADMIN, CUSTOMER_ADMIN, CUSTOMER_USER'
+    message:
+      'role must be one of the following values: ADMIN, CUSTOMER_ADMIN, CUSTOMER_USER',
   })
   role?: UserRole;
 }

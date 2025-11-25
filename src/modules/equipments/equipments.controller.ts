@@ -35,7 +35,10 @@ export class EquipmentsController {
   @Post()
   @ApiOperation({ summary: 'Create a new equipment' })
   @ApiResponse({ status: 201, description: 'Equipment created successfully' })
-  create(@Body() createEquipmentDto: CreateEquipmentDto, @CurrentUser() user: User) {
+  create(
+    @Body() createEquipmentDto: CreateEquipmentDto,
+    @CurrentUser() user: User,
+  ) {
     return this.equipmentsService.create(createEquipmentDto, user.id);
   }
 
@@ -44,14 +47,23 @@ export class EquipmentsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'projectId', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Equipments retrieved successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Equipments retrieved successfully',
+  })
   findAll(
     @CurrentUser() user: User,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Query('projectId') projectId?: string,
   ) {
-    return this.equipmentsService.findAll(page, limit, projectId, user.id, user.role);
+    return this.equipmentsService.findAll(
+      page,
+      limit,
+      projectId,
+      user.id,
+      user.role,
+    );
   }
 
   @Get('dashboard/stats')
@@ -79,13 +91,21 @@ export class EquipmentsController {
     @Body() updateEquipmentDto: UpdateEquipmentDto,
     @CurrentUser() user: User,
   ) {
-    return this.equipmentsService.update(id, updateEquipmentDto, user.id, user.role);
+    return this.equipmentsService.update(
+      id,
+      updateEquipmentDto,
+      user.id,
+      user.role,
+    );
   }
 
   @Patch(':id/status')
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Update equipment status' })
-  @ApiResponse({ status: 200, description: 'Equipment status updated successfully' })
+  @ApiResponse({
+    status: 200,
+    description: 'Equipment status updated successfully',
+  })
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body('status') status: AssetStatus,

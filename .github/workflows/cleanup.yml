@@ -1,0 +1,121 @@
+name: Cleanup Resources
+
+on:
+  schedule:
+    - cron: '0 2 * * 0' # Run every Sunday at 2 AM
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to clean up'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - development
+        - all
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  cleanup-ecr:
+    name: Cleanup ECR Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.environment != 'production'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Clean up old ECR images
+      run: |
+        # Get all image tags older than 30 days
+        aws ecr describe-images --repository-name 4ami-repo --query 'imageDetails[?imagePushedAt<`'$(date -d '30 days ago' --iso-8601)`'].imageTags' --output text | tr '\t' '\n' | grep -v 'None' > old-images.txt
+        
+        # Delete old images
+        if [ -s old-images.txt ]; then
+          echo "Deleting old images..."
+          while read tag; do
+            if [ ! -z "$tag" ]; then
+              echo "Deleting image: $tag"
+              aws ecr batch-delete-image --repository-name 4ami-repo --image-ids imageTag=$tag || true
+            fi
+          done < old-images.txt
+        else
+          echo "No old images to delete"
+        fi
+
+  cleanup-logs:
+    name: Cleanup CloudWatch Logs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Clean up old CloudWatch logs
+      run: |
+        # Delete log groups older than 14 days
+        aws logs describe-log-groups --log-group-name-prefix "/ecs/4ami" --query 'logGroups[?creationTime<`'$(date -d '14 days ago' --iso-8601)`'].logGroupName' --output text | tr '\t' '\n' | while read loggroup; do
+          if [ ! -z "$loggroup" ]; then
+            echo "Deleting log group: $loggroup"
+            aws logs delete-log-group --log-group-name "$loggroup" || true
+          fi
+        done
+
+  cleanup-stale-branches:
+    name: Cleanup Stale Branches
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Delete stale branches
+      run: |
+        # Get branches that haven't been updated in 30 days
+        git for-each-ref --format='%(refname:short) %(committerdate)' refs/remotes/origin | while read branch date; do
+          if [ "$branch" != "origin/main" ] && [ "$branch" != "origin/HEAD" ]; then
+            if [ $(date -d "$date" +%s) -lt $(date -d '30 days ago' +%s) ]; then
+              echo "Deleting stale branch: $branch"
+              git push origin --delete "${branch#origin/}" || true
+            fi
+          fi
+        done
+
+  cleanup-notification:
+    name: Cleanup Notification
+    runs-on: ubuntu-latest
+    needs: [cleanup-ecr, cleanup-logs, cleanup-stale-branches]
+    if: always()
+
+    steps:
+    - name: Cleanup Summary
+      run: |
+        echo "## Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+        echo "| Task | Status |" >> $GITHUB_STEP_SUMMARY
+        echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| ECR Images | ${{ needs.cleanup-ecr.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| CloudWatch Logs | ${{ needs.cleanup-logs.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| Stale Branches | ${{ needs.cleanup-stale-branches.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Cleanup completed on $(date)" >> $GITHUB_STEP_SUMMARY

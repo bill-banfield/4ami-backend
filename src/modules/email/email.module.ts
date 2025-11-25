@@ -1,5 +1,4 @@
 import { Module, OnModuleInit } from '@nestjs/common';
-import { MailerModule } from '@nestjs-modules/mailer';
 import { BullModule } from '@nestjs/bull';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -24,7 +23,7 @@ export class EmailModule implements OnModuleInit {
 
   onModuleInit() {
     console.log('📧 EmailModule initialized');
-    
+
     // Add event listeners for Bull queue
     this.emailQueue.on('completed', (job, result) => {
       console.log(`✅ Email job ${job.id} completed:`, result);
@@ -34,11 +33,11 @@ export class EmailModule implements OnModuleInit {
       console.error(`❌ Email job ${job.id} failed:`, err);
     });
 
-    this.emailQueue.on('stalled', (job) => {
+    this.emailQueue.on('stalled', job => {
       console.warn(`⚠️ Email job ${job.id} stalled`);
     });
 
-    this.emailQueue.on('active', (job) => {
+    this.emailQueue.on('active', job => {
       console.log(`🔄 Email job ${job.id} is now active`);
     });
   }

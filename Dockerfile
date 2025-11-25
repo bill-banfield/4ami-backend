@@ -9,11 +9,18 @@ COPY package*.json ./
 # Install all dependencies (including dev dependencies for build)
 RUN npm ci && npm cache clean --force
 
+# Copy TypeScript config and NestJS config
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
+
 # Copy source code
-COPY . .
+COPY src ./src
 
 # Build the application
-RUN npm run build
+RUN npm run build && \
+    ls -la dist/ && \
+    test -f dist/main.js && \
+    echo "✅ Build successful - dist/main.js exists"
 
 # Production stage
 FROM node:18-alpine AS production
@@ -32,6 +39,11 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy built application
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+
+# Verify dist folder was copied
+RUN ls -la dist/ && \
+    test -f dist/main.js && \
+    echo "✅ Production stage - dist/main.js exists"
 
 # Create uploads directory
 RUN mkdir -p uploads && chown nestjs:nodejs uploads

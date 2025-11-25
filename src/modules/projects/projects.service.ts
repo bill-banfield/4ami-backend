@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 
 import { Project } from '../../entities/project.entity';
 import { User } from '../../entities/user.entity';
@@ -22,8 +22,6 @@ import { ProjectStatus } from '../../common/enums/project-status.enum';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { FilterProjectsDto } from './dto/filter-projects.dto';
-import { SORT_FIELDS } from './constants/pagination.constants';
 import { EmailService } from '../email/email.service';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -73,7 +71,7 @@ export class ProjectsService {
       where: { code: createProjectDto.projectTypeCode, isActive: true },
     });
     if (!projectType) {
-      throw new BadRequestException('Invalid or inactive project type');
+      throw new BadRequestException('valid or inactive project type');
     }
 
     // Determine status:
@@ -85,7 +83,9 @@ export class ProjectsService {
       if (createProjectDto.status === ProjectStatus.DRAFT) {
         projectStatus = ProjectStatus.DRAFT;
       } else {
-        throw new BadRequestException('Only DRAFT status or no status (for immediate submission) is allowed during project creation');
+        throw new BadRequestException(
+          'Only DRAFT status or no status (for immediate submission) is allowed during project creation',
+        );
       }
     } else {
       // No status provided = immediate submission = PENDING
@@ -96,7 +96,8 @@ export class ProjectsService {
     const projectNumber = await this.generateProjectNumber();
 
     // Determine submitDate
-    const submitDate = projectStatus === ProjectStatus.PENDING ? new Date() : null;
+    const submitDate =
+      projectStatus === ProjectStatus.PENDING ? new Date() : null;
 
     // Create base project
     const project = this.projectRepository.create({
@@ -149,7 +150,7 @@ export class ProjectsService {
     }
 
     if (createProjectDto.equipments && createProjectDto.equipments.length > 0) {
-      const equipments = createProjectDto.equipments.map((eq) =>
+      const equipments = createProjectDto.equipments.map(eq =>
         this.projectEquipmentRepository.create({
           ...eq,
           projectId: savedProject.id,
@@ -158,8 +159,11 @@ export class ProjectsService {
       await this.projectEquipmentRepository.save(equipments);
     }
 
-    if (createProjectDto.utilizationScenarios && createProjectDto.utilizationScenarios.length > 0) {
-      const scenarios = createProjectDto.utilizationScenarios.map((scenario) =>
+    if (
+      createProjectDto.utilizationScenarios &&
+      createProjectDto.utilizationScenarios.length > 0
+    ) {
+      const scenarios = createProjectDto.utilizationScenarios.map(scenario =>
         this.projectUtilizationScenarioRepository.create({
           ...scenario,
           projectId: savedProject.id,
@@ -178,7 +182,7 @@ export class ProjectsService {
 
     // Send email notifications ONLY if project status is PENDING (i.e., submitted immediately)
     if (projectStatus === ProjectStatus.PENDING) {
-      this.sendProjectCreationNotifications(fullProject, user).catch((error) => {
+      this.sendProjectCreationNotifications(fullProject, user).catch(error => {
         console.error('Failed to send project creation notifications:', error);
         // Don't fail the project creation if email fails
       });
@@ -187,7 +191,10 @@ export class ProjectsService {
     return fullProject;
   }
 
-  private async sendProjectCreationNotifications(project: Project, creator: User): Promise<void> {
+  private async sendProjectCreationNotifications(
+    project: Project,
+    creator: User,
+  ): Promise<void> {
     try {
       // Get company details
       const company = await this.companyRepository.findOne({
@@ -199,7 +206,10 @@ export class ProjectsService {
         return;
       }
 
-      // 1. Get all system admins (users with ADMIN role) - for BCC
+      // Build recipient list
+      const recipients: string[] = [];
+
+      // 1. Get all system admins (users with ADMIN role)
       const systemAdmins = await this.userRepository.find({
         where: {
           role: UserRole.ADMIN,
@@ -207,9 +217,10 @@ export class ProjectsService {
         },
       });
 
-      const bccRecipients = [...new Set(systemAdmins.map((admin) => admin.email))];
+      const systemAdminEmails = systemAdmins.map(admin => admin.email);
+      recipients.push(...systemAdminEmails);
 
-      // 2. Get all CUSTOMER_ADMIN users from the same company - for CC
+      // 2. Get all CUSTOMER_ADMIN users from the same company
       const companyAdmins = await this.userRepository.find({
         where: {
           companyId: project.companyId,
@@ -218,13 +229,15 @@ export class ProjectsService {
         },
       });
 
-      const ccRecipients = [...new Set(companyAdmins.map((admin) => admin.email))];
+      const companyAdminEmails = companyAdmins.map(admin => admin.email);
+      recipients.push(...companyAdminEmails);
 
-      // Primary recipient is the creator
-      const toRecipient = creator.email;
+      // Remove duplicates
+      const uniqueRecipients = [...new Set(recipients)];
 
-      if (bccRecipients.length === 0 && ccRecipients.length === 0) {
-        console.warn('No BCC or CC recipients found for project creation notification');
+      if (uniqueRecipients.length === 0) {
+        console.warn('No recipients found for project creation notification');
+        return;
       }
 
       // Fetch project attachments if available
@@ -233,20 +246,22 @@ export class ProjectsService {
         order: { createdAt: 'ASC' },
       });
 
-      console.log(`📎 Found ${attachments.length} attachments for project ${project.id}`);
+      console.log(
+        `📎 Found ${attachments.length} attachments for project ${project.id}`,
+      );
 
       // Send notification with attachments
       await this.emailService.sendProjectCreationNotification(
         project,
         creator,
         company,
-        toRecipient,
-        ccRecipients,
-        bccRecipients,
+        uniqueRecipients,
         attachments,
       );
 
-      console.log(`✅ Project creation notification queued - TO: ${toRecipient}, CC: ${ccRecipients.length} company admins, BCC: ${bccRecipients.length} system admins, Attachments: ${attachments.length}`);
+      console.log(
+        `✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins) with ${attachments.length} attachment(s)`,
+      );
     } catch (error) {
       console.error('Error in sendProjectCreationNotifications:', error);
       throw error;
@@ -265,7 +280,9 @@ export class ProjectsService {
         // This prevents duplicates even if projects are deleted
         const latestProject = await this.projectRepository
           .createQueryBuilder('project')
-          .where('project.projectNumber LIKE :yearPattern', { yearPattern: `${year}%` })
+          .where('project.projectNumber LIKE :yearPattern', {
+            yearPattern: `${year}%`,
+          })
           .orderBy('project.projectNumber', 'DESC')
           .limit(1)
           .getOne();
@@ -275,7 +292,10 @@ export class ProjectsService {
         if (latestProject && latestProject.projectNumber) {
           // Extract the sequence number from the latest project number
           // Format: YYYYSSSS (e.g., 20250001)
-          const lastSequence = parseInt(latestProject.projectNumber.substring(4), 10);
+          const lastSequence = parseInt(
+            latestProject.projectNumber.substring(4),
+            10,
+          );
           if (!isNaN(lastSequence)) {
             sequence = lastSequence + 1;
           }
@@ -329,118 +349,6 @@ export class ProjectsService {
     if (userRole === UserRole.ADMIN) {
       // System Admin: See all projects EXCEPT DRAFT
       queryBuilder.where('project.status != :draftStatus', {
-        draftStatus: ProjectStatus.DRAFT
-      });
-    } else if (userRole === UserRole.CUSTOMER_ADMIN && userId) {
-      // Customer Admin: See all projects from their company EXCEPT DRAFT
-      const user = await this.userRepository.findOne({ where: { id: userId } });
-      if (user && user.companyId) {
-        queryBuilder
-          .where('project.companyId = :companyId', { companyId: user.companyId })
-          .andWhere('project.status != :draftStatus', {
-            draftStatus: ProjectStatus.DRAFT
-          });
-      }
-    } else if (userRole === UserRole.CUSTOMER_USER && userId) {
-      // Customer User: See only their own DRAFT and PENDING projects
-      queryBuilder
-        .where('project.createdById = :userId', { userId })
-        .andWhere('project.status IN (:...allowedStatuses)', {
-          allowedStatuses: [ProjectStatus.DRAFT, ProjectStatus.PENDING]
-        });
-    } else if (userId) {
-      // Fallback: if role not recognized, show only user's own projects
-      queryBuilder.where('project.createdById = :userId', { userId });
-    }
-
-    const [projects, total] = await queryBuilder
-      .skip((page - 1) * limit)
-      .take(limit)
-      .orderBy('project.createdAt', 'DESC')
-      .getManyAndCount();
-
-    // Transform the response to include only specific fields for createdBy and company
-    const transformedProjects = projects.map(project => ({
-      ...project,
-      createdBy: project.createdBy ? {
-        id: project.createdBy.id,
-        firstName: project.createdBy.firstName,
-        lastName: project.createdBy.lastName,
-      } : null,
-      company: project.company ? {
-        id: project.company.id,
-        companyName: project.company.companyName,
-      } : null,
-    }));
-
-    return {
-      projects: transformedProjects,
-      total,
-      page,
-      limit,
-    };
-  }
-
-  /**
-   * Find all projects with advanced filtering and pagination
-   * 
-   * Supports:
-   * - Role-based access control (ADMIN sees all non-draft, CUSTOMER_ADMIN sees company projects, CUSTOMER_USER sees own projects)
-   * - Full-text search on project name and number
-   * - Status filtering
-   * - Equipment-related filters (industry, asset class, make, model) with case-insensitive partial matching
-   * - Flexible sorting (by createdAt, updatedAt, name, projectNumber, status)
-   * - Dual pagination strategies: page/limit or offset/limit
-   * 
-   * @param filterDto - Filter and pagination parameters
-   * @param userId - Current user ID for access control
-   * @param userRole - Current user role for access control
-   * @returns Paginated projects with metadata
-   */
-  async findAllFiltered(
-    filterDto: FilterProjectsDto,
-    userId?: string,
-    userRole?: UserRole,
-  ): Promise<{
-    projects: any[];
-    total: number;
-    page: number;
-    limit: number;
-    offset?: number;
-    hasMore: boolean;
-  }> {
-    const { 
-      search, 
-      status, 
-      industry, 
-      assetClass, 
-      make, 
-      model, 
-      sortBy = 'createdAt', 
-      sortOrder = 'DESC',
-      page = 1, 
-      limit = 10, 
-      offset 
-    } = filterDto;
-
-    // Determine pagination strategy: use offset if provided, otherwise use page
-    const skip = offset !== undefined ? offset : (page - 1) * limit;
-
-    const queryBuilder = this.projectRepository
-      .createQueryBuilder('project')
-      .leftJoin('project.createdBy', 'createdBy')
-      .addSelect(['createdBy.id', 'createdBy.firstName', 'createdBy.lastName'])
-      .leftJoin('project.company', 'company')
-      .addSelect(['company.id', 'company.companyName'])
-      .leftJoin('project.projectType', 'projectType')
-      .addSelect(['projectType.id', 'projectType.name', 'projectType.code'])
-      .leftJoinAndSelect('project.assets', 'assets')
-      .leftJoinAndSelect('project.reports', 'reports');
-
-    // Apply role-based filtering
-    if (userRole === UserRole.ADMIN) {
-      // System Admin: See all projects EXCEPT DRAFT
-      queryBuilder.where('project.status != :draftStatus', {
         draftStatus: ProjectStatus.DRAFT,
       });
     } else if (userRole === UserRole.CUSTOMER_ADMIN && userId) {
@@ -448,7 +356,9 @@ export class ProjectsService {
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (user && user.companyId) {
         queryBuilder
-          .where('project.companyId = :companyId', { companyId: user.companyId })
+          .where('project.companyId = :companyId', {
+            companyId: user.companyId,
+          })
           .andWhere('project.status != :draftStatus', {
             draftStatus: ProjectStatus.DRAFT,
           });
@@ -465,81 +375,43 @@ export class ProjectsService {
       queryBuilder.where('project.createdById = :userId', { userId });
     }
 
-    // Apply search filter (project name or project number)
-    if (search) {
-      queryBuilder.andWhere(
-        '(project.name ILIKE :search OR project.projectNumber ILIKE :search)',
-        { search: `%${search}%` }
-      );
-    }
-
-    // Apply status filter
-    if (status) {
-      queryBuilder.andWhere('project.status = :status', { status });
-    }
-
-    // Apply equipment-related filters (industry, assetClass, make, model)
-    // These require joining with project_equipments table
-    if (industry || assetClass || make || model) {
-      queryBuilder.leftJoin('project.equipments', 'equipment');
-
-      if (industry) {
-        queryBuilder.andWhere('equipment.industry ILIKE :industry', { 
-          industry: `%${industry}%` 
-        });
-      }
-
-      if (assetClass) {
-        queryBuilder.andWhere('equipment.assetClass ILIKE :assetClass', { 
-          assetClass: `%${assetClass}%` 
-        });
-      }
-
-      if (make) {
-        queryBuilder.andWhere('equipment.make ILIKE :make', { 
-          make: `%${make}%` 
-        });
-      }
-
-      if (model) {
-        queryBuilder.andWhere('equipment.model ILIKE :model', { 
-          model: `%${model}%` 
-        });
-      }
-
-      // Use DISTINCT to avoid duplicate projects when joining with equipments
-      queryBuilder.distinct(true);
-    }
-
-    // Get total count before pagination
-    const total = await queryBuilder.getCount();
-
-    // Apply sorting
-    // Validate sortBy to prevent SQL injection (already validated by DTO, but extra safety)
-    const safeSortBy = (SORT_FIELDS as readonly string[]).includes(sortBy) ? sortBy : 'createdAt';
-    const safeSortOrder = sortOrder === 'ASC' ? 'ASC' : 'DESC';
-
-    // Apply pagination and sorting
-    const projects = await queryBuilder
-      .skip(skip)
+    const [projects, total] = await queryBuilder
+      .skip((page - 1) * limit)
       .take(limit)
-      .orderBy(`project.${safeSortBy}`, safeSortOrder)
-      .getMany();
+      .orderBy('project.createdAt', 'DESC')
+      .getManyAndCount();
 
-    // Calculate hasMore for cursor-based pagination
-    const hasMore = skip + projects.length < total;
+    // Transform the response to include only specific fields for createdBy and company
+    const transformedProjects = projects.map(project => ({
+      ...project,
+      createdBy: project.createdBy
+        ? {
+            id: project.createdBy.id,
+            firstName: project.createdBy.firstName,
+            lastName: project.createdBy.lastName,
+          }
+        : null,
+      company: project.company
+        ? {
+            id: project.company.id,
+            companyName: project.company.companyName,
+          }
+        : null,
+    }));
 
     return {
-      projects,
+      projects: transformedProjects,
       total,
-      page: offset !== undefined ? Math.floor(skip / limit) + 1 : page,
+      page,
       limit,
-      offset: offset !== undefined ? skip : undefined,
-      hasMore,
     };
   }
 
-  async findOne(id: string, userId?: string, userRole?: UserRole): Promise<Project> {
+  async findOne(
+    id: string,
+    userId?: string,
+    userRole?: UserRole,
+  ): Promise<Project> {
     const queryBuilder = this.projectRepository
       .createQueryBuilder('project')
       // Select only specific fields for createdBy
@@ -567,7 +439,9 @@ export class ProjectsService {
     if (userRole !== UserRole.ADMIN && userId) {
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (user && user.companyId) {
-        queryBuilder.andWhere('project.companyId = :companyId', { companyId: user.companyId });
+        queryBuilder.andWhere('project.companyId = :companyId', {
+          companyId: user.companyId,
+        });
       }
     }
 
@@ -578,69 +452,6 @@ export class ProjectsService {
     }
 
     return project;
-  }
-
-  async findByCurrentUser(
-    userId: string,
-    userRole: UserRole,
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<{
-    projects: Project[];
-    total: number;
-    page: number;
-    limit: number;
-  }> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    const queryBuilder = this.projectRepository
-      .createQueryBuilder('project')
-      // Select only specific fields for createdBy
-      .leftJoin('project.createdBy', 'createdBy')
-      .addSelect(['createdBy.id', 'createdBy.firstName', 'createdBy.lastName'])
-      // Select only specific fields for company
-      .leftJoin('project.company', 'company')
-      .addSelect(['company.id', 'company.companyName'])
-      // Select only specific fields for projectType
-      .leftJoin('project.projectType', 'projectType')
-      .addSelect(['projectType.id', 'projectType.name'])
-      // Load all fields for these relations
-      .leftJoinAndSelect('project.client', 'client')
-      .leftJoinAndSelect('project.source', 'source')
-      .leftJoinAndSelect('project.financial', 'financial')
-      .leftJoinAndSelect('project.transaction', 'transaction')
-      .leftJoinAndSelect('project.equipments', 'equipments')
-      .leftJoinAndSelect('project.utilizationScenarios', 'utilizationScenarios')
-      .leftJoinAndSelect('project.assets', 'assets')
-      .leftJoinAndSelect('project.reports', 'reports')
-      .leftJoinAndSelect('project.attachments', 'attachments');
-
-    // Filter based on user role
-    if (userRole === UserRole.CUSTOMER_ADMIN) {
-      // Admin: Return all projects from user's company
-      if (user.companyId) {
-        queryBuilder.where('project.companyId = :companyId', { companyId: user.companyId });
-      }
-    } else if (userRole === UserRole.CUSTOMER_USER) {
-      // Customer User: Return only projects created by the user
-      queryBuilder.where('project.createdById = :userId', { userId });
-    }
-
-    const [projects, total] = await queryBuilder
-      .skip((page - 1) * limit)
-      .take(limit)
-      .orderBy('project.createdAt', 'DESC')
-      .getManyAndCount();
-
-    return {
-      projects,
-      total,
-      page,
-      limit,
-    };
   }
 
   async update(
@@ -657,13 +468,14 @@ export class ProjectsService {
     }
 
     // Track if status is changing from DRAFT to PENDING
-    const wasInDraft = project.status === ProjectStatus.DRAFT;
-    const isChangingToPending = updateProjectDto.status === ProjectStatus.PENDING;
+    const waDraft = project.status === ProjectStatus.DRAFT;
+    const isChangingToPending =
+      updateProjectDto.status === ProjectStatus.PENDING;
 
     Object.assign(project, updateProjectDto);
 
     // Set submitDate when transitioning from DRAFT to PENDING
-    if (wasInDraft && isChangingToPending && !project.submitDate) {
+    if (waDraft && isChangingToPending && !project.submitDate) {
       project.submitDate = new Date();
     }
 
@@ -681,7 +493,10 @@ export class ProjectsService {
     await this.projectRepository.remove(project);
   }
 
-  async getDashboardStats(userId?: string, userRole?: UserRole): Promise<{
+  async getDashboardStats(
+    userId?: string,
+    userRole?: UserRole,
+  ): Promise<{
     totalProjects: number;
     pendingProjects: number;
     inProgressProjects: number;
@@ -703,10 +518,28 @@ export class ProjectsService {
       cancelledProjects,
     ] = await Promise.all([
       queryBuilder.getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.PENDING }).getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.IN_PROGRESS }).getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.COMPLETED }).getCount(),
-      queryBuilder.clone().andWhere('project.status = :status', { status: ProjectStatus.CANCELLED }).getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', { status: ProjectStatus.PENDING })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', {
+          status: ProjectStatus.IN_PROGRESS,
+        })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', {
+          status: ProjectStatus.COMPLETED,
+        })
+        .getCount(),
+      queryBuilder
+        .clone()
+        .andWhere('project.status = :status', {
+          status: ProjectStatus.CANCELLED,
+        })
+        .getCount(),
     ]);
 
     return {
@@ -749,7 +582,9 @@ export class ProjectsService {
 
     // Validate that project is in DRAFT status
     if (project.status !== ProjectStatus.DRAFT) {
-      throw new BadRequestException(`Cannot submit project. Project is already in ${project.status} status. Only DRAFT projects can be submitted.`);
+      throw new BadRequestException(
+        `Cannot submit project. Project is already in ${project.status} status. Only DRAFT projects can be submitted.`,
+      );
     }
 
     // Change status to PENDING and set submitDate
@@ -763,10 +598,15 @@ export class ProjectsService {
 
     // Send email notifications when draft is submitted
     if (user) {
-      this.sendProjectCreationNotifications(updatedProject, user).catch((error) => {
-        console.error('Failed to send project submission notifications:', error);
-        // Don't fail the submission if email fails
-      });
+      this.sendProjectCreationNotifications(updatedProject, user).catch(
+        error => {
+          console.error(
+            'Failed to send project submission notifications:',
+            error,
+          );
+          // Don't fail the submission if email fails
+        },
+      );
     }
 
     return updatedProject;
@@ -802,7 +642,9 @@ export class ProjectsService {
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (user && user.companyId) {
         queryBuilder
-          .where('project.companyId = :companyId', { companyId: user.companyId })
+          .where('project.companyId = :companyId', {
+            companyId: user.companyId,
+          })
           .andWhere('project.status != :draftStatus', {
             draftStatus: ProjectStatus.DRAFT,
           });
@@ -836,7 +678,12 @@ export class ProjectsService {
     validateFiles(files);
 
     // Create project-specific directory
-    const projectDir = path.join(process.cwd(), 'uploads', 'projects', projectId);
+    const projectDir = path.join(
+      process.cwd(),
+      'uploads',
+      'projects',
+      projectId,
+    );
     await ensureDirectoryExists(projectDir);
 
     const attachments: ProjectAttachment[] = [];
@@ -898,7 +745,9 @@ export class ProjectsService {
     if (
       userRole !== UserRole.ADMIN &&
       project.createdById !== userId &&
-      project.companyId !== (await this.userRepository.findOne({ where: { id: userId } }))?.companyId
+      project.companyId !==
+        (await this.userRepository.findOne({ where: { id: userId } }))
+          ?.companyId
     ) {
       throw new ForbiddenException(
         'You do not have permission to upload files to this project',
