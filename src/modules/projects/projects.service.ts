@@ -191,10 +191,7 @@ export class ProjectsService {
     return fullProject;
   }
 
-  private async sendProjectCreationNotifications(
-    project: Project,
-    creator: User,
-  ): Promise<void> {
+  private async sendProjectCreationNotifications(project: Project, creator: User): Promise<void> {
     try {
       // Get company details
       const company = await this.companyRepository.findOne({
@@ -206,10 +203,7 @@ export class ProjectsService {
         return;
       }
 
-      // Build recipient list
-      const recipients: string[] = [];
-
-      // 1. Get all system admins (users with ADMIN role)
+      // 1. Get all system admins (users with ADMIN role) - for BCC
       const systemAdmins = await this.userRepository.find({
         where: {
           role: UserRole.ADMIN,
@@ -217,10 +211,9 @@ export class ProjectsService {
         },
       });
 
-      const systemAdminEmails = systemAdmins.map(admin => admin.email);
-      recipients.push(...systemAdminEmails);
+      const bccRecipients = [...new Set(systemAdmins.map((admin) => admin.email))];
 
-      // 2. Get all CUSTOMER_ADMIN users from the same company
+      // 2. Get all CUSTOMER_ADMIN users from the same company - for CC
       const companyAdmins = await this.userRepository.find({
         where: {
           companyId: project.companyId,
@@ -229,15 +222,13 @@ export class ProjectsService {
         },
       });
 
-      const companyAdminEmails = companyAdmins.map(admin => admin.email);
-      recipients.push(...companyAdminEmails);
+      const ccRecipients = [...new Set(companyAdmins.map((admin) => admin.email))];
 
-      // Remove duplicates
-      const uniqueRecipients = [...new Set(recipients)];
+      // Primary recipient is the creator
+      const toRecipient = creator.email;
 
-      if (uniqueRecipients.length === 0) {
-        console.warn('No recipients found for project creation notification');
-        return;
+      if (bccRecipients.length === 0 && ccRecipients.length === 0) {
+        console.warn('No BCC or CC recipients found for project creation notification');
       }
 
       // Fetch project attachments if available
@@ -246,28 +237,26 @@ export class ProjectsService {
         order: { createdAt: 'ASC' },
       });
 
-      console.log(
-        `📎 Found ${attachments.length} attachments for project ${project.id}`,
-      );
+      console.log(`📎 Found ${attachments.length} attachments for project ${project.id}`);
 
       // Send notification with attachments
       await this.emailService.sendProjectCreationNotification(
         project,
         creator,
         company,
-        uniqueRecipients,
+        toRecipient,
+        ccRecipients,
+        bccRecipients,
         attachments,
       );
 
-      console.log(
-        `✅ Project creation notifications queued for ${uniqueRecipients.length} recipients (${systemAdminEmails.length} system admins + ${companyAdminEmails.length} company admins) with ${attachments.length} attachment(s)`,
-      );
+      console.log(`✅ Project creation notification queued - TO: ${toRecipient}, CC: ${ccRecipients.length} company admins, BCC: ${bccRecipients.length} system admins, Attachments: ${attachments.length}`);
     } catch (error) {
       console.error('Error in sendProjectCreationNotifications:', error);
       throw error;
     }
   }
-
+  
   private async generateProjectNumber(): Promise<string> {
     const maxRetries = 10;
     let attempt = 0;
@@ -452,6 +441,69 @@ export class ProjectsService {
     }
 
     return project;
+  }
+
+  async findByCurrentUser(
+    userId: string,
+    userRole: UserRole,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    projects: Project[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const queryBuilder = this.projectRepository
+      .createQueryBuilder('project')
+      // Select only specific fields for createdBy
+      .leftJoin('project.createdBy', 'createdBy')
+      .addSelect(['createdBy.id', 'createdBy.firstName', 'createdBy.lastName'])
+      // Select only specific fields for company
+      .leftJoin('project.company', 'company')
+      .addSelect(['company.id', 'company.companyName'])
+      // Select only specific fields for projectType
+      .leftJoin('project.projectType', 'projectType')
+      .addSelect(['projectType.id', 'projectType.name'])
+      // Load all fields for these relations
+      .leftJoinAndSelect('project.client', 'client')
+      .leftJoinAndSelect('project.source', 'source')
+      .leftJoinAndSelect('project.financial', 'financial')
+      .leftJoinAndSelect('project.transaction', 'transaction')
+      .leftJoinAndSelect('project.equipments', 'equipments')
+      .leftJoinAndSelect('project.utilizationScenarios', 'utilizationScenarios')
+      .leftJoinAndSelect('project.assets', 'assets')
+      .leftJoinAndSelect('project.reports', 'reports')
+      .leftJoinAndSelect('project.attachments', 'attachments');
+
+    // Filter based on user role
+    if (userRole === UserRole.CUSTOMER_ADMIN) {
+      // Admin: Return all projects from user's company
+      if (user.companyId) {
+        queryBuilder.where('project.companyId = :companyId', { companyId: user.companyId });
+      }
+    } else if (userRole === UserRole.CUSTOMER_USER) {
+      // Customer User: Return only projects created by the user
+      queryBuilder.where('project.createdById = :userId', { userId });
+    }
+
+    const [projects, total] = await queryBuilder
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('project.createdAt', 'DESC')
+      .getManyAndCount();
+
+    return {
+      projects,
+      total,
+      page,
+      limit,
+    };
   }
 
   async update(
