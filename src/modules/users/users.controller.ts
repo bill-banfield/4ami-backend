@@ -120,24 +120,27 @@ export class UsersController {
   @Public()
   @ApiOperation({ summary: 'Get user details by invitation code' })
   @ApiQuery({ name: 'invitationCode', required: true, type: String })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'User details retrieved successfully', 
-    type: UserInvitationDetailsDto 
+  @ApiResponse({
+    status: 200,
+    description: 'User details retrieved successfully',
+    type: UserInvitationDetailsDto,
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   @ApiResponse({ status: 400, description: 'Invitation code is required' })
-  async getUserByInvitationCode(@Query('invitationCode') invitationCode: string): Promise<UserInvitationDetailsDto> {
+  async getUserByInvitationCode(
+    @Query('invitationCode') invitationCode: string,
+  ): Promise<UserInvitationDetailsDto> {
     if (!invitationCode) {
       throw new NotFoundException('Invitation code is required');
     }
-    
+
     const user = await this.usersService.findByInvitationCode(invitationCode);
     if (!user) {
-      throw new NotFoundException('User not found with the provided invitation code');
+      throw new NotFoundException(
+        'User not found with the provided invitation code',
+      );
     }
-    console.log(user);
-    
+
     // Return only the specified fields for security
     return {
       email: user.email,

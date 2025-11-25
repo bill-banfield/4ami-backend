@@ -237,7 +237,9 @@ export class ProjectsService {
         order: { createdAt: 'ASC' },
       });
 
-      console.log(`📎 Found ${attachments.length} attachments for project ${project.id}`);
+      console.log(
+        `📎 Found ${attachments.length} attachments for project ${project.id}`,
+      );
 
       // Send notification with attachments
       await this.emailService.sendProjectCreationNotification(
