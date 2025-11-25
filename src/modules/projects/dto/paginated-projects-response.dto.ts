@@ -38,4 +38,3 @@ export class PaginatedProjectsResponseDto {
   })
   hasMore: boolean;
 }
-

@@ -28,7 +28,10 @@ export class UsersService {
     private emailService: EmailService,
   ) {}
 
-  async create(createUserDto: CreateUserDto, creatorId?: string): Promise<User> {
+  async create(
+    createUserDto: CreateUserDto,
+    creatorId?: string,
+  ): Promise<User> {
     const { email, firstName, lastName, role, phone } = createUserDto;
 
     // Check if user already exists
@@ -440,14 +443,22 @@ export class UsersService {
     };
   }
 
-  async getCustomerAdminStats(currentUser: User): Promise<CustomerAdminStatsDto> {
+  async getCustomerAdminStats(
+    currentUser: User,
+  ): Promise<CustomerAdminStatsDto> {
     if (!currentUser.companyId) {
-      throw new BadRequestException('Customer Admin must be associated with a company');
+      throw new BadRequestException(
+        'Customer Admin must be associated with a company',
+      );
     }
 
     const [totalCompanyProjects, totalCompanyUsers] = await Promise.all([
-      this.projectRepository.count({ where: { companyId: currentUser.companyId } }),
-      this.userRepository.count({ where: { companyId: currentUser.companyId } }),
+      this.projectRepository.count({
+        where: { companyId: currentUser.companyId },
+      }),
+      this.userRepository.count({
+        where: { companyId: currentUser.companyId },
+      }),
     ]);
 
     return {

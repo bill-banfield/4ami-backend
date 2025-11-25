@@ -191,7 +191,10 @@ export class ProjectsService {
     return fullProject;
   }
 
-  private async sendProjectCreationNotifications(project: Project, creator: User): Promise<void> {
+  private async sendProjectCreationNotifications(
+    project: Project,
+    creator: User,
+  ): Promise<void> {
     try {
       // Get company details
       const company = await this.companyRepository.findOne({
@@ -211,7 +214,9 @@ export class ProjectsService {
         },
       });
 
-      const bccRecipients = [...new Set(systemAdmins.map((admin) => admin.email))];
+      const bccRecipients = [
+        ...new Set(systemAdmins.map(admin => admin.email)),
+      ];
 
       // 2. Get all CUSTOMER_ADMIN users from the same company - for CC
       const companyAdmins = await this.userRepository.find({
@@ -222,13 +227,17 @@ export class ProjectsService {
         },
       });
 
-      const ccRecipients = [...new Set(companyAdmins.map((admin) => admin.email))];
+      const ccRecipients = [
+        ...new Set(companyAdmins.map(admin => admin.email)),
+      ];
 
       // Primary recipient is the creator
       const toRecipient = creator.email;
 
       if (bccRecipients.length === 0 && ccRecipients.length === 0) {
-        console.warn('No BCC or CC recipients found for project creation notification');
+        console.warn(
+          'No BCC or CC recipients found for project creation notification',
+        );
       }
 
       // Fetch project attachments if available
@@ -252,13 +261,15 @@ export class ProjectsService {
         attachments,
       );
 
-      console.log(`✅ Project creation notification queued - TO: ${toRecipient}, CC: ${ccRecipients.length} company admins, BCC: ${bccRecipients.length} system admins, Attachments: ${attachments.length}`);
+      console.log(
+        `✅ Project creation notification queued - TO: ${toRecipient}, CC: ${ccRecipients.length} company admins, BCC: ${bccRecipients.length} system admins, Attachments: ${attachments.length}`,
+      );
     } catch (error) {
       console.error('Error in sendProjectCreationNotifications:', error);
       throw error;
     }
   }
-  
+
   private async generateProjectNumber(): Promise<string> {
     const maxRetries = 10;
     let attempt = 0;
@@ -487,7 +498,9 @@ export class ProjectsService {
     if (userRole === UserRole.CUSTOMER_ADMIN) {
       // Admin: Return all projects from user's company
       if (user.companyId) {
-        queryBuilder.where('project.companyId = :companyId', { companyId: user.companyId });
+        queryBuilder.where('project.companyId = :companyId', {
+          companyId: user.companyId,
+        });
       }
     } else if (userRole === UserRole.CUSTOMER_USER) {
       // Customer User: Return only projects created by the user

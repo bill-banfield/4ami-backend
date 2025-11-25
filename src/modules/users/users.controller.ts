@@ -95,24 +95,28 @@ export class UsersController {
   @Get('customer-admin/stats')
   @Roles(UserRole.CUSTOMER_ADMIN)
   @ApiOperation({ summary: 'Get Customer Admin company statistics' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Customer Admin stats retrieved successfully',
-    type: CustomerAdminStatsDto 
+    type: CustomerAdminStatsDto,
   })
-  getCustomerAdminStats(@CurrentUser() user: User): Promise<CustomerAdminStatsDto> {
+  getCustomerAdminStats(
+    @CurrentUser() user: User,
+  ): Promise<CustomerAdminStatsDto> {
     return this.usersService.getCustomerAdminStats(user);
   }
 
   @Get('customer-user/stats')
   @Roles(UserRole.CUSTOMER_USER)
   @ApiOperation({ summary: 'Get Customer User personal statistics' })
-  @ApiResponse({ 
-    status: 200, 
+  @ApiResponse({
+    status: 200,
     description: 'Customer User stats retrieved successfully',
-    type: CustomerUserStatsDto 
+    type: CustomerUserStatsDto,
   })
-  getCustomerUserStats(@CurrentUser() user: User): Promise<CustomerUserStatsDto> {
+  getCustomerUserStats(
+    @CurrentUser() user: User,
+  ): Promise<CustomerUserStatsDto> {
     return this.usersService.getCustomerUserStats(user);
   }
 
@@ -149,7 +153,7 @@ export class UsersController {
       title: user.title,
       companyName: user.companyName,
       source: user.source,
-      role: user.role
+      role: user.role,
     };
   }
 

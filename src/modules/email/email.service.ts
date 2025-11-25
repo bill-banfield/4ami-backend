@@ -131,15 +131,18 @@ export class EmailService {
       attachmentsCount: attachments?.length || 0,
     });
 
-    const job = await this.emailQueue.add('send-project-creation-notification', {
-      project,
-      creator,
-      company,
-      to,
-      cc,
-      bcc,
-      attachments: attachments || [],
-    });
+    const job = await this.emailQueue.add(
+      'send-project-creation-notification',
+      {
+        project,
+        creator,
+        company,
+        to,
+        cc,
+        bcc,
+        attachments: attachments || [],
+      },
+    );
 
     return {
       jobId: job.id.toString(),

@@ -31,8 +31,6 @@ import {
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { FilterProjectsDto } from './dto/filter-projects.dto';
-import { PaginatedProjectsResponseDto } from './dto/paginated-projects-response.dto';
 import { ProjectStatus } from '../../common/enums/project-status.enum';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../../entities/user.entity';
@@ -103,7 +101,9 @@ export class ProjectsController {
   }
 
   @Get('user/projects')
-  @ApiOperation({ summary: 'Get all projects for current user with pagination' })
+  @ApiOperation({
+    summary: 'Get all projects for current user with pagination',
+  })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
@@ -113,7 +113,12 @@ export class ProjectsController {
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @CurrentUser() user: User,
   ) {
-    return this.projectsService.findByCurrentUser(user.id, user.role, page, limit);
+    return this.projectsService.findByCurrentUser(
+      user.id,
+      user.role,
+      page,
+      limit,
+    );
   }
 
   @Get(':id')

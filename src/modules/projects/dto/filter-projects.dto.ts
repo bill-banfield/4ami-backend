@@ -1,12 +1,25 @@
-import { IsOptional, IsEnum, IsString, IsInt, Min, Max, IsIn } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  IsIn,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ProjectStatus } from '../../../common/enums/project-status.enum';
-import { PAGINATION, SORT_FIELDS, SORT_ORDERS } from '../constants/pagination.constants';
+import {
+  PAGINATION,
+  SORT_FIELDS,
+  SORT_ORDERS,
+} from '../constants/pagination.constants';
 
 export class FilterProjectsDto {
   @ApiPropertyOptional({
-    description: 'Search by project name or project number (case-insensitive partial match)',
+    description:
+      'Search by project name or project number (case-insensitive partial match)',
     example: 'residual',
   })
   @IsOptional()
@@ -118,4 +131,3 @@ export class FilterProjectsDto {
   @Min(PAGINATION.MIN_OFFSET)
   offset?: number;
 }
-

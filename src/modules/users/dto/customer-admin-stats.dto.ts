@@ -7,4 +7,3 @@ export class CustomerAdminStatsDto {
   @ApiProperty({ description: 'Total number of company users' })
   totalCompanyUsers: number;
 }
-
