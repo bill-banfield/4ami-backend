@@ -23,11 +23,11 @@ import { CustomerSignupDto } from './dto/customer-signup.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { EmailVerificationResponseDto } from './dto/email-verification-response.dto';
 import { SignInResponseDto } from './dto/signin-response.dto';
-import { UserResponseDto } from '../users/dto/user-response.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { User } from '../../entities/user.entity';
 import { AuthGuard } from '@nestjs/passport';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 
 @ApiTags('Authentication')
 @Controller('auth')

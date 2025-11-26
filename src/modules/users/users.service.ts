@@ -9,17 +9,22 @@ import { Repository } from 'typeorm';
 import { v4 as uuidv4 } from 'uuid';
 
 import { User } from '../../entities/user.entity';
+import { Project } from '../../entities/project.entity';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { EmailService } from '../email/email.service';
+import { CustomerAdminStatsDto } from './dto/customer-admin-stats.dto';
+import { CustomerUserStatsDto } from './dto/customer-user-stats.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(Project)
+    private projectRepository: Repository<Project>,
     private emailService: EmailService,
   ) {}
 
@@ -435,6 +440,40 @@ export class UsersService {
       activeUsers,
       pendingUsers,
       usersByRole: roleStats,
+    };
+  }
+
+  async getCustomerAdminStats(
+    currentUser: User,
+  ): Promise<CustomerAdminStatsDto> {
+    if (!currentUser.companyId) {
+      throw new BadRequestException(
+        'Customer Admin must be associated with a company',
+      );
+    }
+
+    const [totalCompanyProjects, totalCompanyUsers] = await Promise.all([
+      this.projectRepository.count({
+        where: { companyId: currentUser.companyId },
+      }),
+      this.userRepository.count({
+        where: { companyId: currentUser.companyId },
+      }),
+    ]);
+
+    return {
+      totalCompanyProjects,
+      totalCompanyUsers,
+    };
+  }
+
+  async getCustomerUserStats(currentUser: User): Promise<CustomerUserStatsDto> {
+    const totalPersonalProjects = await this.projectRepository.count({
+      where: { createdById: currentUser.id },
+    });
+
+    return {
+      totalPersonalProjects,
     };
   }
 }

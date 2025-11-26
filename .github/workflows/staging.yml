@@ -1,0 +1,66 @@
+name: Staging Deployment
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  deploy:
+    name: Deploy to Staging Server
+    runs-on: ['self-hosted', '4ami-staging']
+    environment: 'staging'
+    strategy:
+        matrix:
+            node-version: [v18.20.8]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix['node-version'] }}
+          cache: "npm"
+      - name: Verify Node.js and npm versions
+        run: |
+          node -v
+          npm -v
+      - name: Install npm dependencies
+        run: npm install
+      - name: Set environment variables
+        run: |
+          echo "NODE_ENV=${{ vars.NODE_ENV }}" >> .env
+          echo "PORT=${{ vars.PORT }}" >> .env
+          echo "API_PREFIX=${{ vars.API_PREFIX }}" >> .env
+          echo "FRONTEND_URL=${{ vars.FRONTEND_URL }}" >> .env
+          echo "BACKEND_URL=${{ vars.BACKEND_URL }}" >> .env
+          echo "AI_AGENT_URL=${{ vars.AI_AGENT_URL }}" >> .env
+          echo "DB_DATABASE=${{ vars.DB_DATABASE }}" >> .env
+          echo "DB_USERNAME=${{ vars.DB_USERNAME }}" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_HOST=${{ vars.DB_HOST }}" >> .env
+          echo "DB_PORT=${{ vars.DB_PORT }}" >> .env
+          echo "REDIS_HOST=${{ vars.REDIS_HOST }}" >> .env
+          echo "REDIS_PORT=${{ vars.REDIS_PORT }}" >> .env
+          echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "JWT_EXPIRES_IN=${{ vars.JWT_EXPIRES_IN }}" >> .env
+          echo "MAIL_FROM=${{ vars.MAIL_FROM }}" >> .env
+          echo "EMAIL_PROVIDER=${{ vars.EMAIL_PROVIDER }}" >> .env
+          echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env
+          echo "MAX_FILE_SIZE=${{ vars.MAX_FILE_SIZE }}" >> .env
+          echo "UPLOAD_PATH=${{ vars.UPLOAD_PATH }}" >> .env
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env
+
+      - name: Source .env
+        run: |
+            set -a
+            source .env
+            set +a
+      - name: Build Apps
+        run: npm run build
+      - name: Copy files to web directory
+        run: sudo -S cp -rf . /var/www/4ami-staging <<< "${{ secrets.SUDO_PASSWORD }}"
+      - name: Restart PM2 Service
+        run: |
+          sudo -S pm2 restart 4ami-staging <<< "${{ secrets.SUDO_PASSWORD }}"
+      
